@@ -1,30 +1,9 @@
-# # TERMLIB
+# TERMLIB
 #
 # A terminal-inspired rendering library for XO-CHIP. Originally
 # written for OctoJam 10 (https://itch.io/jam/octojam-10).
 #
-# ## General style notes
-#
-# ### Registers:
-#
-# | Register range  | Purpose(s)                    | Comments                         |
-# |-----------------|-------------------------------|----------------------------------|
-# | `v0` - `v4`     | Working memory, function args | Can be clobbered at any time     |
-# | `vF`            | True / false / return code    | Like +/- ops, returns op results |
-#
-# All other registers are expected to be clobbered between calls
-# of major functions. The "_internal" functions may or may not do
-# so, but they are not intended to be called directly by user code.
-#
-# ### Names
-#
-# | Object type       | Naming scheme               |
-# |-------------------|-----------------------------|
-# | Functions         | functions-use-kebab-case    |
-# | Internal function | _internal-subroutine        |
-# | Data              | data_labels_use_underscores |
-# | Sub-label         | _subcomponent_label         |
-
+# See docstyle.md for project documentation conventions.
 
 ##################################################################
 ##################################################################
@@ -43,33 +22,65 @@
 
 #TODO: see if i can make a comment macro that throws away the string value?
 
-# General memory helpers
-:macro add16  x_hi_u16 x_lo_u16   y_hi_u16 y_lo_u16   {
+:macro add_u16_u8   x_hi_u16 x_lo_u16   y_lo_u8             {
 
-	# Add a 16 bit value to another and store the result in x_hi and x_lo
-	#
-	# x_hi_u16  : The hi byte of the destination; must be a register
-	# x_lo_u16  : The lo byte of the destination; must be a reigster
-	# y_hi_u16  : The hi byte of a 16 bit constant, or a register holding one
-	# y_lo_u16  : The hi byte of a 16 bit constant, or a register holding one
+	#: Increment the x registers by the unsigned 8-bit value in y_lo_u8
+	#:
+	#: Params:
+	#: 	x_hi_u16 : vN
+	#:			The hi byte of the destination; must be a register
+	#: 	x_lo_u16 : vN
+	#: 		The lo byte of the destination; must be a register
+	#: 	y_lo_u8  : vN or const u8
+	#:			The hi byte of a 16 bit constant, or a register holding one
+	#: Clobbers:
+	#:  vF
+
+	x_lo_u16 += lo_u16
+	x_hi_u16 += vF
+
+}
+# General memory helpers
+:macro add_u16_u16  x_hi_u16 x_lo_u16   y_hi_u16 y_lo_u16   {
+
+	#: Add a 16 bit value to another and store the result in x_hi and x_lo
+	#:
+	#: Args:
+	#: 	x_hi_u16 : vN
+	#:			The hi byte of the destination
+	#: 	x_lo_u16 : vN
+	#:			The lo byte of the destination register
+	#: 	y_hi_u16 : vN or const u8
+	#:			The hi byte of a 16 bit constant or a register holding one
+	#: 	y_lo_u16 : vN or const u8
+	#: 		The lo byte of a 16 bit constant or a register holding one
+	#: Clobbers:
+	#: 	vF
 
 	x_lo_u16 += y_lo_u16
 	x_hi_u16 += vF
 	x_hi_u16 += y_lo_u16
 }
 
-:macro unpack-and-increment LABEL hi_uint16 lo_uint16 {
+:macro unpack-and-increment LABEL hi_u16 lo_u16 {
 
-	# Unpack a label to v0 and v1, then add an offset
-	#
-	# LABEL     : a label or calculation result for a location in memory
-	# hi_uint16 : hi byte of a big endian unsigned 16 bit int or constant
-	# lo_uint16 : lo byte of a big endian unsigned 16 bit int or constant
+	#: Unpack LABEL to v0, v1 in long mode and offset it by the passed u16.
+	#:
+	#: Args:
+	#: 	LABEL     : label
+	#:			a label or calculation result for a location in memory
+	#: 	hi_u16    : a V register or an 8-bit constant
+	#:			hi byte of a big endian unsigned 16 bit int or constant
+	#: 	lo_u16    : a V register or an 8-bit constant
+	#:   	lo byte of a big endian unsigned 16 bit int or constant
+	#: Clobbers:
+	#: 	vF
+
 
 	:unpack long LABEL
-	v1 += lo_uint16
+	v1 += lo_u16
 	v0 += vF
-	v0 += hi_uint16
+	v0 += hi_u16
 
 }
 
@@ -94,17 +105,24 @@
 ####          Current drawing state & persistence             ####
 ##################################################################
 
+#
+:alias draw_x             v5  #: The draw cursor's left edge
+:alias draw_y             v6  #: The draw cursor's top edge
+
 :macro set-draw-coords-to  X    Y  { draw_x := X draw_y := Y }
-#                          |    |
-#                          V    |
-:alias draw_x             v5 #  |  # The draw cursor's left edge
-:alias draw_y             v6 #<-+  # The draw cursor's top edge
+
+	#: Set the current draw coordinates to the given value.
+	#:
+	#: Args:
+	#: 		X : vN or u8
+	#: 			The X coordinate to set
+	#:    Y : vN or u8
+	#:      The y coordinate to set
 
 # Configurable color allows data to set the current color.
 # See the font section futher down for more information.
-
-:alias fg_color           v7  # Current foreground drawing color / planes
-:alias bg_color           v8  # Current background drawing color / planes
+:alias fg_color           v7  #: Current foreground drawing color / planes
+:alias bg_color           v8  #: Current background drawing color / planes
 
 :alias draw_reg_0 draw_x  :alias draw_reg_end bg_color
 
@@ -119,7 +137,20 @@
 :const COLOR_GRAY          PLANE_3
 
 	:macro set-fg-color        SOURCE { fg_color := SOURCE }
+
+		#: Set the foreground plane mask to the passed value
+		#:
+		#: Args:
+		#:		vN : vN or const u8
+		#:			A register containing a valid plane mask.
+
 	:macro set-bg-color        SOURCE { bg_color := SOURCE }
+
+		#: Set the background plane mask to the passed value
+		#:
+		#: Args:
+		#:		SOURCE : vN or const u8
+		#:			A register containing a valid plane mask.
 
 	: _set-active-color
 		#
@@ -132,8 +163,27 @@
 			plane 3 return
 
 	:macro use-color        vN { v0 <<= vN     :call _set-active-color }
+
+		#: Set the plane mask to the value in vN
+		#:
+		#: Args:
+		#:		vN : vN
+		#:			A register containing a valid plane mask.
+		#: Clobbers:
+		#:		v0, vF
+
 	:macro use-fg-color        { use-color fg_color }
+
+		#: Set the current plane mask to the value in fg_color
+		#:
+		#: Clobbers:
+		#:		v0, vF
+
 	:macro use-bg-color        { use-color bg_color }
+		#: Set the plane mask to the value in bg_color
+		#:
+		#: Clobbers:
+		#:		v0, vF
 
 	#		i := _color_nibble
 	#		vF := 0xF0
@@ -205,51 +255,64 @@
 # Where on screen the current message starts
 :alias msg_start_x            v9
 :alias msg_start_y            vA
-# :alias msg_width_px           vA  # Computed width so far
 
 # Current character & text mode
-:alias current_byte_index     vB :monitor current_byte_index "%i (decimal)"
-:alias current_byte_value     vC :monitor current_byte_value "%c (ascii)"
+:alias current_byte_index     vB
 
-:alias msg_reg_0 msg_start_x  :alias msg_reg_end current_byte_value
+	#: The current offset into the message.
+
+:alias current_byte_value     vC
+
+	#: The read value of the current byte.
+
+:monitor current_byte_index "%i (decimal)"
+:monitor current_byte_value "%c (ascii)"
+
+:alias _msg_reg_0 msg_start_x  :alias _msg_reg_end current_byte_value
 
 # Todo: consider storing the decoded values in memory...
 # useful if want to do layout.
 
 	# Universal control characters
-	:const CHAR_NULL          0x00  # End of message
-	:const CHAR_NEWLINE       0x0A  # \n
-	:const CHAR_ESCAPE        0x5E  # Used to read escape bounds
+	:const CHAR_NULL          0x00  #: End of message
 
 	# "Block" boundaries for text to allow sparse text rendering
-	:const CHAR_SPACE         0x20  # Boundary: start of early block
-	:const CHAR_SINGLEQUOTE   0x27  # Boundary: end of early block
-	:const CHAR_A             0x41  # Boundary: start of letters
-	:const CHAR_Z             0x5A  # Boundary: end of letters
+	:const CHAR_SPACE         0x20  #: Boundary: start of early block
+	:const CHAR_SINGLEQUOTE   0x27  #: Boundary: end of early block
+	:const CHAR_A             0x41  #: Boundary: start of letters
+	:const CHAR_Z             0x5A  #: Boundary: end of letters
 
-	# Formatting control characters
-	:const CHAR_B             0x42  # Background
-	:const CHAR_D             0x44  # "Defaults"
-	:const CHAR_F             0x46  # Foreground
+ 	#: ### Formatting control characters
 
+	:const CHAR_ESCAPE        0x5E  #: The start of an escape sequence.
 
-	:macro digit NAME { :calc NAME { CALLS + 0x30 } }
+	#: `^` in text is treated as an escape sequence opener.
+	#:
+	#: The following Control codes are supported:
 
-		digit CHAR_0
-		digit CHAR_1
-		digit CHAR_2
-		digit CHAR_3
-		digit CHAR_4
-		digit CHAR_5
-		digit CHAR_6
-		digit CHAR_7
-		digit CHAR_8
-		digit CHAR_9
+	:const CHAR_NEWLINE       0x0A  #: '\n' in text, goes back to the
+	:const CHAR_B             0x42  #: Background control code
+	:const CHAR_F             0x46  #: Foreground control code
+	:const CHAR_D             0x44  #: "Restore defaults"
+
+	:macro _base10 NAME { :calc NAME { CALLS + 0x30 } }
+
+		_base10 CHAR_0
+		_base10 CHAR_1
+		_base10 CHAR_2
+		_base10 CHAR_3
+		_base10 CHAR_4
+		_base10 CHAR_5
+		_base10 CHAR_6
+		_base10 CHAR_7
+		_base10 CHAR_8
+		_base10 CHAR_9
 
 	:const STYLE_PLANE_0    CHAR_0
 	:const STYLE_PLANE_1    CHAR_1
 	:const STYLE_PLANE_2    CHAR_2
 	:const STYLE_PLANE_3    CHAR_3
+
 
 	# Character constants (check with `& 0x80`; 0b10000000 works too)
 	:const END_OF_STRING CHAR_NULL
@@ -258,19 +321,6 @@
 	:const MAINBLOCK_START  CHAR_SINGLEQUOTE
 	:const MAINBLOCK_END    CHAR_Z
 	:calc  MAINBLOCK_SPAN   { MAINBLOCK_END - MAINBLOCK_START }
-
-  # ^ in text is treated in a way roughty inspired by extended
-	# caret notation for control characters:
-  # https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Modified_C0_control_code_sets
-	#
-  # Control codes:
-  #
-  # | Control code | Action(s)
-  # |--------------|------------------------------------
-  # | `\n`         | y += line_height, x := line_start_x
-	# | "^FN"        | Set foreground bitplane to N
-	# | "^BN"        | Set background bitplane to N
-  # | "^D"         | Restore default bitplanes
 
   # Macro used as `text "stringvalue"` will generate ascii bytes.
   :stringmode text "\0\n !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^m" {
@@ -294,6 +344,8 @@
 
 : current_msg_state
 
+	#: A struct for persisting the current message state.
+
 	: _current_msg_position
 		0x00 # Msg start x
 		0x00 # Msg start Y
@@ -306,27 +358,47 @@
 
 # This has to be a label since we need to use a real
 # memory address to persist the state between calls.
+
 : restore-current-msg
+
+	#: Restore the current message pointer to i.
+
 	0xF0 0x00
 	: _current_msg_addr
 	  0x00 0x00
+
  	return
 
 
 :macro set-current-msg LABEL {
 
-	# Set the current message to begin showing in a resumable way.
+	#: Set the current message to begin showing in a resumable way.
+	#:
+	#: Args:
+	#:	 LABEL   : label
+	#:  	 Which null-terminated message to set as active.
+	#:
+	#: Clobbers:
+	#:		v0 - v1
+	#:
+	#:	Returns : void
 
-	# LABEL   : A label-like token for a null-terminated message to start showing.
-	# Returns : void
-
-		:unpack long LABEL     # Store LABEL into vN; long allows reading higher mem
+		:unpack long LABEL     # Store LABEL into v0, vN; long allows reading higher mem
 		i := long _current_msg_addr
 		save v0 - v1  # Uses rStart - rEnd form to avoid advancing
 }
 
 :macro peek-next-msg-byte vN {
-	# Load the byte at current_byte_index in the current message to vN
+
+	#: Load the byte at current_byte_index in the current message to vN
+	#:
+	#: Args:
+	#: 	vN : vN
+	#:		A register containing an offset into the message.
+	#: Clobbers:
+	#: 	i
+	#: Returns: u8
+	#: 	The value of the byte at offset vN from msg start.
 
 	:call restore-current-msg
 	i += current_byte_index
@@ -334,16 +406,43 @@
 }
 
 :macro read-msg-byte             vN { current_byte_index += 1  peek-next-msg-byte vN     }
-:macro read-next-byte-as-color   vN { read-msg-byte vN         vN              -= CHAR_0 }
+
+	#: Read the next byte of the message, advancing the current byte index.
+	#: Args:
+	#:   vN : vN
+	#:		 Where to read the current byte to.
+	#: Updates:
+	#:		 current_byte_index, i
+	#: Returns:
+	#:	  vN
+
+:macro read-next-byte-as-color   vN { read-msg-byte vN  vN -= CHAR_0 }
+
+	#: Read the next byte of the message as a color, advancing the current byte index.
+	#: Args:
+	#:   vN : vN
+	#:		 Where to read the color to.
+	#: Updates:
+	#:		 current_byte_index
+	#: Clobbers:
+	#:  i
+	#: Returns:
+	#:	  vN
+
 :macro show-msg START_X START_Y MSG_LABEL {
 
-	# Set the draw cursor to the given X, Y and render a null-terminated message.
-
-	# START_X   : A X position to move the cursor to.
-	# START_Y   : A Y position to move the cursor to.
-	# MSG_LABEL : A label-like token which points to a null-terminated message.
-
-	# Returns   : void
+	#: Set the draw cursor to the given X, Y and render a null-terminated message.
+	#:
+	#: Args:
+	#: 	START_X  :
+	#:			A X position to move the cursor to.
+	#: 	START_Y :
+	#:			A Y position to move the cursor to.
+	#: 	MSG_LABEL :
+	#:			A label-like token which points to a null-terminated message.
+	#:
+	#: Clobbers:
+	#: 	v0 - v3, vF, i
 
 	msg_start_x  := START_X   msg_start_y := START_Y
 	set-current-msg MSG_LABEL
@@ -407,11 +506,20 @@
 
 
 	: _handle-control
-		#
-		# Assumes non-printable / control byte in current_byte_value
 
-		# current_byte_value  : a current byte which is assumed to be CHAR_ESCAPE
-		# current_byte_index  : the current index in bytes into the string
+		#: Handle the next byte as a control escape.
+		#:
+		#: Assumes non-printable / control byte in current_byte_value
+		#: Args:
+		#:	 current_byte_value  : vN
+		#:		 a current byte which is assumed to be CHAR_ESCAPE
+		#:	 current_byte_index  : vN
+		#:		 the current index in bytes into the string
+		#: Updates:
+		#: 	fg_color, bg_color, current_byte_value, current_char_index
+		#: Clobbers:
+		#:  vF
+		#: Returns: void
 
 	  read-msg-byte current_byte_value
 		if current_byte_value != CHAR_F then jump _handle-control-bg-color
@@ -436,11 +544,33 @@
 	return
 
 	: _handle-newline
-			draw_y += GLYPH_STEP_Y_PX
-			draw_x := msg_start_x
+
+		#: Move to the next line down.
+		#:
+		#: Updates:
+		#: 	draw_x, draw_y
+		#: Clobbers:
+		#:  vF
+		#: Returns: void
+
+		draw_y += GLYPH_STEP_Y_PX
+		draw_x := msg_start_x
 	return
 
 	: _show-msg-render
+
+			#: Render an entire null-terminated message.
+			#:
+			#: Args:
+			#: 	msg_start_x : vN
+			#: 		X position where messages should be shown on the screen
+			#:  msg_start_y : vN
+			#: 		Y position where message should be shown on the screen.
+			#: Clobbers:
+			#: 		v0, current_byte_value, current_byte_index, vF
+			#: Updates:
+			#: 		draw_x, draw_y
+
 			# :breakpoint render
 
 			current_byte_index := 0
@@ -493,6 +623,7 @@
 
 ####### User code #######
 : main
+
 	hires
 
 	:macro msg-screen MSG_LABEL {
