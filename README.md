@@ -16,13 +16,13 @@ It supports notions of foreground and background:
 
 ## Table of contents
 
-1.  [Why build this?](why-build-this)
-2.  [How does it work?](how-does-it-work)
-3.  [Is it fast?](is-it-fast)
-4.  [Syntax Details](syntax-details)
-5.  [Design goals](design-goals)
-6.  [Design goals](current-limitations)
-7.  [Inspiration](inspiration)
+1.  [Why build this?](#why-build-this)
+2.  [How does it work?](#how-does-it-work)
+3.  [Is it fast?](#is-it-fast)
+4.  [Syntax Details](#syntax-details)
+5.  [Design goals](#design-goals)
+6.  [Current limitations](#current-limitations)
+7.  [Inspiration](#inspiration)
 
 ## Why build this?
 
