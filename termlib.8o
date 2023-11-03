@@ -1,0 +1,779 @@
+# # TERMLIB
+#
+# A terminal-inspired rendering library for XO-CHIP. Originally
+# written for OctoJam 10 (https://itch.io/jam/octojam-10).
+#
+# ## General style notes
+#
+# ### Registers:
+#
+# | Register range  | Purpose(s)                    | Comments                         |
+# |-----------------|-------------------------------|----------------------------------|
+# | `v0` - `v4`     | Working memory, function args | Can be clobbered at any time     |
+# | `vF`            | True / false / return code    | Like +/- ops, returns op results |
+#
+# All other registers are expected to be clobbered between calls
+# of major functions. The "_internal" functions may or may not do
+# so, but they are not intended to be called directly by user code.
+#
+# ### Names
+#
+# | Object type       | Naming scheme               |
+# |-------------------|-----------------------------|
+# | Functions         | functions-use-kebab-case    |
+# | Internal function | _internal-subroutine        |
+# | Data              | data_labels_use_underscores |
+# | Sub-label         | _subcomponent_label         |
+
+
+##################################################################
+##################################################################
+####                     General / Setup                      ####
+##################################################################
+##################################################################
+
+:alias vJump0 v0
+
+# Define tricky values as constants.
+:const SUB_OP_UNDERFLOW    0
+:const ADD_OP_OVERFLOW     1
+:const MINUS_ONE        0xFF
+:macro vN--               vN { vN += MINUS_ONE }
+
+# General memory helpers
+:macro add16  x_hi_u16 x_lo_u16   y_hi_u16 y_lo_u16   {
+
+	# Add a 16 bit value to another and store the result in x_hi and x_lo
+	#
+	# x_hi_u16  : The hi byte of the destination; must be a register
+	# x_lo_u16  : The lo byte of the destination; must be a reigster
+	# y_hi_u16  : The hi byte of a 16 bit constant, or a register holding one
+	# y_lo_u16  : The hi byte of a 16 bit constant, or a register holding one
+
+	x_lo_u16 += y_lo_u16
+	x_hi_u16 += vF
+	x_hi_u16 += y_lo_u16
+}
+
+:macro unpack-and-increment LABEL hi_uint16 lo_uint16 {
+
+	# Unpack a label to v0 and v1, then add an offset
+	#
+	# LABEL     : a label or calculation result for a location in memory
+	# hi_uint16 : hi byte of a big endian unsigned 16 bit int or constant
+	# lo_uint16 : lo byte of a big endian unsigned 16 bit int or constant
+
+	:unpack long LABEL
+	v1 += lo_uint16
+	v0 += vF
+	v0 += hi_uint16
+
+}
+
+# Time and feedback controls
+:macro start_buzzer_though vN amount { vN := amount buzzer := vN }
+:macro start_buzzer           amount { vF := amount buzzer := vF }
+
+:macro start_timer_through vN amount { vN := amount delay  := vN }
+:macro start_timer            amount { vF := amount delay  := vF }
+
+
+##################################################################
+##################################################################
+####                   General Rendering                      ####
+##################################################################
+##################################################################
+
+:const HIREZ_WIDTH_PX    128
+:const HIREZ_HEIGHT_PX    64
+
+##################################################################
+####          Current drawing state & persistence             ####
+##################################################################
+
+:macro set-draw-coords-to  X    Y  { draw_x := X draw_y := Y }
+#                          |    |
+#                          V    |
+:alias draw_x             v5 #  |  # The draw cursor's left edge
+:alias draw_y             v6 #<-+  # The draw cursor's top edge
+
+# Configurable color allows data to set the current color.
+# See the font section futher down for more information.
+
+:alias fg_color           v7  # Current foreground drawing color / planes
+:alias bg_color           v8  # Current background drawing color / planes
+
+:alias draw_reg_0 draw_x  :alias draw_reg_end bg_color
+
+:const PLANE_NONE          0      # Invisible
+:const PLANE_1             1      # Plane 1
+:const PLANE_2             2      # Plane 2
+:const PLANE_3             3      # Both planes
+
+:const COLOR_NONE          PLANE_NONE
+:const COLOR_WHITE         PLANE_1
+:const COLOR_RED           PLANE_2
+:const COLOR_GRAY          PLANE_3
+
+	:macro set-fg-color        SOURCE { fg_color := SOURCE }
+	:macro set-bg-color        SOURCE { bg_color := SOURCE }
+
+	: _set-active-color
+		v0 <<= v0  # Total multiplication is * 4
+		jump0 _set-active-color-table
+		: _set-active-color-table
+			plane 0 return
+			plane 1 return
+			plane 2 return
+			plane 3 return
+
+	:macro use-fg-color        { v0 <<= fg_color :call _set-active-color }
+	:macro use-bg-color        { v0 <<= bg_color :call _set-active-color }
+
+	#		i := _color_nibble
+	#		vF := 0xF0
+	#		vF |= fg_color
+	#		save vF - vF
+	#		: _color_nibble
+	#		plane 3
+	#	return
+
+# Drawing state persistence between states / actions
+
+: _drawing_state
+
+  : _drawing_state_xy
+
+    0x00 # X px
+		0x00 # Y px
+
+	: _drawing_state_colors
+	  :byte { COLOR_GRAY      } # Foreground color
+		:byte { COLOR_NONE      } # Background color
+
+
+: _default_drawing_state
+
+  : _default_drawing_state_xy
+		:byte { 0 }
+		:byte { 0 }
+
+	: _default_drawing_state_colors
+		:byte { COLOR_GRAY      }
+		:byte { COLOR_NONE      }
+
+
+	# Function bodies are inlinable for faster text drawing if needed
+	:macro _restore_drawing_state_at LABEL { i := LABEL load draw_reg_0 - draw_reg_end }
+	:macro _persist_drawing_state_at LABEL { i := LABEL save draw_reg_0 - draw_reg_end }
+
+	: restore-drawing-state
+		_restore_drawing_state_at _drawing_state
+		return
+	: persist-drawing-state
+		_persist_drawing_state_at _drawing_state
+		return
+
+
+###################################################################
+###                        Text rendering                       ###
+###################################################################
+
+# UI data we'll need
+:const GLYPH_WIDTH_PX          4 # Usable glyph area
+:const GLYPH_HEIGHT_PX         7 # Usable glyph area
+:const GLYPH_TRACKING_PX       1 # Space between the characters
+:const LINE_LEADING_PX         1 # Space after lines
+
+:calc  GLYPH_STEP_X_PX         { GLYPH_WIDTH_PX  + GLYPH_TRACKING_PX }
+:calc  GLYPH_STEP_Y_PX         { GLYPH_HEIGHT_PX + LINE_LEADING_PX   }
+
+:const GLYPH_DATA_HEIGHT_PX    6 # Standard glyphs have this height
+:calc  GLYPH_DATA_LENGTH_BYTES { 2 * GLYPH_DATA_HEIGHT_PX }
+:calc  HIGHLIGHT_HEIGHT_PX     { GLYPH_DATA_HEIGHT_PX + 1 }
+
+
+# Where on screen the current message starts
+:alias msg_start_x            v9
+:alias msg_start_y            vA
+# :alias msg_width_px           vA  # Computed width so far
+
+# Current character & text mode
+:alias current_byte_index     vB :monitor current_byte_index "%i (decimal)"
+:alias current_byte_value     vC :monitor current_byte_value "%c (ascii)"
+
+:alias msg_reg_0 msg_start_x  :alias msg_reg_end current_byte_value
+
+# Todo: consider storing the decoded values in memory...
+# useful if want to do layout.
+
+	:const CHAR_NULL          0x00
+	:const CHAR_NEWLINE       0x0A
+	:const CHAR_SPACE         0x20
+	:const CHAR_SINGLEQUOTE   0x27
+	:const CHAR_A             0x41  # Boundary, start of letters
+	:const CHAR_B             0x42
+	:const CHAR_D             0x44  # "Defaults"
+	:const CHAR_K             0x4B  # Key mode
+	:const CHAR_F             0x46
+	:const CHAR_Z             0x5A  # Boundary, end of letters
+	:const CHAR_m							0x6D
+	:const CHAR_ESCAPE        0x5E  #
+
+	:macro digit NAME { :calc NAME { CALLS + 0x30 } }
+
+	 digit CHAR_0
+	 digit CHAR_1
+	 digit CHAR_2
+	 digit CHAR_3
+	 digit CHAR_4
+	 digit CHAR_5
+	 digit CHAR_6
+	 digit CHAR_7
+	 digit CHAR_8
+	 digit CHAR_9
+
+	:const STYLE_PLANE_0    CHAR_0
+	:const STYLE_PLANE_1    CHAR_1
+	:const STYLE_PLANE_2    CHAR_2
+	:const STYLE_PLANE_3    CHAR_3
+
+	# Character constants (check with `& 0x80`; 0b10000000 works too)
+	:const END_OF_STRING CHAR_NULL
+
+	# A coherent-ish block of chars values, '0' <= char <= 'Z'
+	:const MAINBLOCK_START  CHAR_SINGLEQUOTE
+	:const MAINBLOCK_END    CHAR_Z
+	:calc  MAINBLOCK_SPAN   { MAINBLOCK_END - MAINBLOCK_START }
+
+  # ^ in text is treated in a way roughty inspired by extended
+	# caret notation for control characters:
+  # https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Modified_C0_control_code_sets
+
+  # Control codes:
+  #
+  # | Control code | Action(s)
+  # |--------------|----------
+  # | "\n"         | 1. += line_height
+  # |              | 2. draw_x := line_start_x
+	# | "^FN"        | Set foreground bitplane
+	# | "^BN"        | Set background bitplane
+  # | "^D"         | Restore default bitplanes
+
+  # Macro used as `text "stringvalue"` will generate ascii bytes.
+  :stringmode text "\0\n !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^m" {
+	  :byte { CHAR }
+  }
+		# :stringmode text "^" { :byte CHAR_ESCAPE }
+
+	:stringmode text-offset "'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^" {
+		#( ( MAINBLOCK_START <= CHAR ) and ( CHAR <= MAINBLOCK_END ) ) *
+		:pointer { ( GLYPH_DATA_LENGTH_BYTES * 3 )
+							 + ( ( 3 + CHAR - MAINBLOCK_START ) *  GLYPH_DATA_LENGTH_BYTES ) }
+		# :byte { ( mainblock-position >> 8 ) & 0xFF ) }
+		# :byte {   mainblock-position        & 0xFF ) }
+	}
+	# \0 !\"',./
+	:stringmode text-offset " !\"" {
+		:pointer { ( ( CHAR - CHAR_SPACE ) * GLYPH_DATA_LENGTH_BYTES  ) }
+	}
+	# :stringmode text-offset "^"    { :pointer long font_data_control }
+
+
+######## Message data ########
+
+: msg_title
+
+		text "\n\n"
+		text "^F3^B0  COLORLIB DEMO\n"
+		text "   ^F3^B2 PRESS ANY KEY ^D\n"
+		text "      ^F2^B3 ALL TEXT DYNAMIC! ^D\0"
+
+: msg_all
+
+		text "^F0^B0 0^F1^B0 1^F2^B0 2^F3^B0 3\n"
+		text "^F0^B1 4^F1^B1 5^F2^B1 6^F3^B1 7\n"
+		text "^F0^B2 8^F1^B2 9^F2^B210^F3^B211\n"
+		text "^F0^B312^F1^B313^F2^B314^F3^B315^D\0"
+
+: current_msg_state
+
+	: _current_msg_position
+		0x00 # Msg start x
+		0x00 # Msy start Y
+		0x00 # Msg Width px
+
+		0x00 # Last char index
+		0x00 # Char value
+	: _current_msg_position_end
+
+
+: restore-current-msg
+#	:next _current_msg_addr i := long 0x0
+	0xF0 0x00
+	: _current_msg_addr
+	  0x00 0x00
+ 	return
+
+
+:macro set-current-msg LABEL {
+
+	# Set the current message to begin showing in a resumable way.
+	#
+	# LABEL   : A label-like token for a null-terminated message to start showing.
+	# Returns : void
+
+		:unpack long LABEL :call _set-current-msg
+}
+
+	: _set-current-msg
+		# TODO: erasure / caching!
+		i := long _current_msg_addr
+		save v0 - v1
+	return
+
+:macro peek-next-msg-byte {
+
+	# Load the byte at current_byte_index in the current message to current_byte_value.
+
+	:call restore-current-msg
+	v0 := current_byte_index
+	i  += v0
+	load current_byte_value - current_byte_value
+
+}
+
+:macro show-msg START_X START_Y MSG_LABEL {
+
+	# Set the draw cursor to the given X, Y and render a null-terminated message.
+	#
+	# START_X   : A X position to move the cursor to.
+	# START_Y   : A Y position to move the cursor to.
+	# MSG_LABEL : A label-like token which points to a null-terminated message.
+
+		msg_start_x := START_X msg_start_y := START_Y
+		set-current-msg MSG_LABEL
+		:call _show-msg-render
+	}
+
+
+	: _font_offsets
+		text-offset " !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	: _render-visible-glyph
+
+		# Render current_byte_value to the screen in the glyph table.
+
+
+		# skip bg if no bg
+		if bg_color == 0 then jump _render_fg_glyph
+
+			use-bg-color
+			i := highlight_block_body
+			sprite draw_x draw_y HIGHLIGHT_HEIGHT_PX
+
+		# skip fg if no fg
+		: _render_fg_glyph
+		if fg_color == 0 then jump _render-visible-glyph-end
+
+			# Figure out which block we need: start or main
+			v2 := current_byte_value
+
+			if current_byte_value < MAINBLOCK_START begin
+				vF := CHAR_SPACE
+			else
+				vF := MAINBLOCK_START
+			end
+			v2 -= VF
+
+			# Convert from integer index into byte offset
+			v2 <<= v2
+
+			# Look up the raw offset value within the font
+			i := long _font_offsets
+			i += v2
+			load v2 - v3
+
+			# Combine with the base address for the font glyphs
+			unpack-and-increment font_data v2 v3
+
+			# Load the glyph data and render it
+			i := _render_glyph_address
+			save v0 - v1
+			0xF0 0x00
+			: _render_glyph_address
+				0x00 0x00
+			use-fg-color
+			sprite draw_x draw_y GLYPH_DATA_HEIGHT_PX
+
+		: _render-visible-glyph-end
+		draw_x += GLYPH_STEP_X_PX
+	return
+
+	:macro read-msg-byte                       { current_byte_index += 1   peek-next-msg-byte  }
+	:macro convert-digit-char-to-int      vN { vN := current_byte_value  vN -= CHAR_0        }
+	:macro read-next-byte-as-color          vN {
+		read-msg-byte
+		convert-digit-char-to-int      v0
+		vN                          := v0
+	}
+
+	: _handle-control
+		#
+		# Assumes non-printable / control byte in current_byte_value
+
+		# current_byte_value  : a current byte which is assumed to be CHAR_ESCAPE
+		# current_byte_index : the current index in bytes into the string
+
+	  read-msg-byte
+		if current_byte_value != CHAR_F then jump _handle-control-bg-color
+
+			read-next-byte-as-color  fg_color
+			jump _handle-control-end
+
+		: _handle-control-bg-color
+		if current_byte_value != CHAR_B then jump _handle-control-check-default
+
+			read-next-byte-as-color  bg_color
+			jump _handle-control-end
+
+		: _handle-control-check-default
+		if current_byte_value != CHAR_D then jump _handle-control-end
+
+			set-bg-color COLOR_NONE
+			set-fg-color COLOR_GRAY
+
+		: _handle-control-end
+	return
+
+	: _handle-newline
+			draw_y += GLYPH_STEP_Y_PX
+			draw_x := msg_start_x
+	return
+
+	: _show-msg-render
+			# :breakpoint render
+			set-bg-color COLOR_NONE
+			set-fg-color COLOR_GRAY
+
+			current_byte_index := 0
+			set-draw-coords-to msg_start_x msg_start_y
+
+			loop
+
+				peek-next-msg-byte
+				# Exit on end of message, no exceptions
+				while current_byte_value != END_OF_STRING
+
+				# :breakpoint decide
+				v0 := 0
+				if current_byte_value == CHAR_ESCAPE  then v0 := 4 # instructions 2 long
+				if current_byte_value == CHAR_NEWLINE then v0 := 8 #
+
+				jump0 _byte_action_table
+				: _byte_action_table
+					:call _render-visible-glyph   jump _byte_action_table_after
+					:call _handle-control         jump _byte_action_table_after
+					:call _handle-newline       # jump _byte_action_table_after # Last jump redundant
+				: _byte_action_table_after
+
+				: _byte_loop_end
+				current_byte_index += 1
+			again
+
+	: _show-msg-render-end
+	return
+
+
+###################################################################
+###                          Main State                         ###
+###################################################################
+
+
+: main
+	hires
+
+	:macro msg-screen MSG_LABEL {
+		plane 3
+		clear
+		show-msg 0 0 MSG_LABEL
+		v0 := key
+	}
+
+	loop
+		msg-screen msg_title
+		msg-screen msg_all
+	again
+
+
+: pixel_data
+
+  : grid_16x16_color # wastes some bytes to get fast grid drawing
+		0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00
+		0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00
+		0x00 0x00 0x00 0x00
+		0x00 # Pad to align to 16 bit widths
+
+	: enemy_cursor_color
+	  0x84 0x00 0x00 0x00 0x00 0x84 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x78 0x84 0x84 0x84 0x84
+		0x78 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+	: player_cursor_color
+		0x78 0x84 0x84 0x84 0x84 0x78 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x84 0x00 0x00 0x00 0x00
+		0x84 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+	: highlight_block_prefix # 1-px wide pre block item
+	  0x80 0x80 0x80 0x80 0x80 0x80 0x80
+		0x80 0x80 0x80 0x80 0x80 0x80 0x80
+
+  : highlight_block_body
+		# 0x78 0x78 0x78 0x78 0x78 0x78 0x78
+		# 0x78 0x78 0x78 0x78 0x78 0x78 0x78
+		0xF8 0xF8 0xF8 0xF8 0xF8 0xF8 0xF8
+		0xF8 0xF8 0xF8 0xF8 0xF8 0xF8 0xF8
+
+  : underline_cont
+    0x00 0x00 0x00 0x00 0x00 0x00 0xF0 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0xF0 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+	: underline_start
+	  0x00 0x00 0x00 0x00 0x00 0x00 0xE0 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0xE0 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+	# need to compensate before usage
+  # : font_offsets
+	  #text-offsets "0123456ABCDEFGHIJKLMNOPQRSTUVWXYZ.,:!?'\" \\"
+
+	: font_data
+		# Based on Tom Thumb, used under CC0 Public Domain Dedication
+		# Original URL: https://robey.lag.net/2010/01/23/tiny-monospace-font.html
+
+
+		# ' '  0x20
+		0x00 0x00 0x00 0x00 0x00 0x00
+		0x00 0x00 0x00 0x00 0x00 0x00
+		# '!'  0x21
+		0x00 0x10 0x10 0x10 0x00 0x10
+		0x00 0x10 0x10 0x10 0x00 0x10
+		# '"'  0x22
+		0x00 0x28 0x28 0x00 0x00 0x00
+		0x00 0x28 0x28 0x00 0x00 0x00
+
+
+  : font_data_mainblock
+		: font_data_singlequote
+			# "'"  0x27
+			0x00 0x10 0x10 0x00 0x00 0x00
+			0x00 0x10 0x10 0x00 0x00 0x00
+
+		: font_data_lparen
+			# '(' 0x28
+			0x00 0x20 0x40 0x40 0x40 0x20
+			0x00 0x20 0x40 0x40 0x40 0x20
+
+		: font_data_rparen
+			# ')' 0x29
+			0x00 0x40 0x20 0x20 0x20 0x40
+			0x00 0x40 0x20 0x20 0x20 0x40
+
+		: font_data_star
+			# '*' 0x2A
+			0x00 0x50 0x20 0x50 0x00 0x00
+			0x00 0x50 0x20 0x50 0x00 0x00
+
+		: font_data_plus
+			# '+' 0x2B
+			0x00 0x00 0x20 0x70 0x20 0x00
+			0x00 0x00 0x20 0x70 0x20 0x00
+
+		: font_data_comma
+			# ','  0x2C
+			0x00 0x00 0x00 0x00 0x00 0x81
+			0x00 0x00 0x00 0x00 0x00 0x81
+
+		: font_data_dash
+			# '-', 0x2D
+			0x00 0x00 0x00 0x70 0x00 0x00
+			0x00 0x00 0x00 0x70 0x00 0x00
+
+		: font_data_period
+			# '.'  0x2E
+			0x00 0x00 0x00 0x00 0x00 0x01
+			0x00 0x00 0x00 0x00 0x00 0x01
+		: font_data_forward_slash
+			# '/'  0x2F
+			0x00 0x00 0x10 0x20 0x20 0x40
+			0x00 0x00 0x10 0x20 0x20 0x40
+
+		# '0'  0x30
+		0x00 0x30 0x50 0x50 0x50 0x60
+		0x00 0x30 0x50 0x50 0x50 0x60
+		# '1'  0x31
+		0x00 0x10 0x30 0x10 0x10 0x10
+		0x00 0x10 0x30 0x10 0x10 0x10
+		# '2'  0x32
+		0x00 0x60 0x10 0x20 0x40 0x70
+		0x00 0x60 0x10 0x20 0x40 0x70
+		# '3'  0x33
+		0x00 0x60 0x10 0x20 0x10 0x60
+		0x00 0x60 0x10 0x20 0x10 0x60
+		# '4'  0x34
+		0x00 0x50 0x50 0x70 0x10 0x10
+		0x00 0x50 0x50 0x70 0x10 0x10
+		# '5'  0x35
+		0x00 0x70 0x40 0x60 0x10 0x60
+		0x00 0x70 0x40 0x60 0x10 0x60
+		# '6'  0x36
+		0x00 0x30 0x40 0x70 0x50 0x70
+		0x00 0x30 0x40 0x70 0x50 0x70
+		# '7'  0x37
+		0x00 0x70 0x10 0x20 0x40 0x40
+		0x00 0x70 0x10 0x20 0x40 0x40
+		# '8'  0x38
+		0x00 0x70 0x50 0x70 0x50 0x70
+		0x00 0x70 0x50 0x70 0x50 0x70
+		# '9'  0x39
+		0x00 0x70 0x50 0x70 0x10 0x60
+		0x00 0x70 0x50 0x70 0x10 0x60
+		# ':'  0x3A
+		0x00 0x00 0x20 0x00 0x20 0x00
+		0x00 0x00 0x20 0x00 0x20 0x00
+		# ';'  0x3B
+		0x00 0x00 0x20 0x00 0x20 0x40
+		0x00 0x00 0x20 0x00 0x20 0x40
+		# '<'  0x3C
+		0x00 0x10 0x20 0x40 0x20 0x10
+		0x00 0x10 0x20 0x40 0x20 0x10
+		# '='  0x3D
+		0x00 0x00 0x70 0x00 0x70 0x00
+		0x00 0x00 0x70 0x00 0x70 0x00
+		# '>'  0x3E
+		0x00 0x40 0x20 0x10 0x20 0x40
+		0x00 0x40 0x20 0x10 0x20 0x40
+		# '?'  0x3F
+		0x00 0x70 0x10 0x20 0x00 0x20
+		0x00 0x70 0x10 0x20 0x00 0x20
+		# '@'  0x40
+		0x00 0x70 0x70 0x70 0x70 0x70
+		0x00 0x70 0x70 0x70 0x70 0x70
+		# 'A'  0x41
+		0x00 0x20 0x50 0x70 0x50 0x50
+		0x00 0x20 0x50 0x70 0x50 0x50
+		# 'B'  0x42
+		0x00 0x60 0x50 0x60 0x50 0x60
+		0x00 0x60 0x50 0x60 0x50 0x60
+		# 'C'  0x43
+		0x00 0x30 0x40 0x40 0x40 0x30
+		0x00 0x30 0x40 0x40 0x40 0x30
+		# 'D'  0x44
+		0x00 0x60 0x50 0x50 0x50 0x60
+		0x00 0x60 0x50 0x50 0x50 0x60
+		# 'E'  0x45
+		0x00 0x70 0x40 0x70 0x40 0x70
+		0x00 0x70 0x40 0x70 0x40 0x70
+		# 'F'  0x46
+		0x00 0x70 0x40 0x70 0x40 0x40
+		0x00 0x70 0x40 0x70 0x40 0x40
+		# 'G'  0x47
+		0x00 0x30 0x40 0x70 0x50 0x30
+		0x00 0x30 0x40 0x70 0x50 0x30
+		# 'H'  0x48
+		0x00 0x50 0x50 0x70 0x50 0x50
+		0x00 0x50 0x50 0x70 0x50 0x50
+		# 'I'  0x49
+		0x00 0x70 0x20 0x20 0x20 0x70
+		0x00 0x70 0x20 0x20 0x20 0x70
+		# 'J'  0x4A
+		0x00 0x10 0x10 0x10 0x50 0x20
+		0x00 0x10 0x10 0x10 0x50 0x20
+		# 'K'  0x4B
+		0x00 0x50 0x50 0x60 0x50 0x50
+		0x00 0x50 0x50 0x60 0x50 0x50
+		# 'L'  0x4C
+		0x00 0x40 0x40 0x40 0x40 0x70
+		0x00 0x40 0x40 0x40 0x40 0x70
+		# 'M'  0x4D
+		0x00 0x50 0x70 0x70 0x50 0x50
+		0x00 0x50 0x70 0x70 0x50 0x50
+		# 'N'  0x4E
+		0x00 0x50 0x70 0x70 0x70 0x50
+		0x00 0x50 0x70 0x70 0x70 0x50
+		# 'O'  0x4F
+		0x00 0x20 0x50 0x50 0x50 0x20
+		0x00 0x20 0x50 0x50 0x50 0x20
+		# 'P'  0x50
+		0x00 0x60 0x50 0x60 0x40 0x40
+		0x00 0x60 0x50 0x60 0x40 0x40
+		# 'Q'  0x51
+		0x00 0x20 0x50 0x50 0x70 0x30
+		0x00 0x20 0x50 0x50 0x70 0x30
+		# 'R'  0x52
+		0x00 0x60 0x50 0x70 0x60 0x50
+		0x00 0x60 0x50 0x70 0x60 0x50
+		# 'S'  0x53
+		0x00 0x30 0x40 0x20 0x10 0x60
+		0x00 0x30 0x40 0x20 0x10 0x60
+		# 'T'  0x54
+		0x00 0x70 0x20 0x20 0x20 0x20
+		0x00 0x70 0x20 0x20 0x20 0x20
+		# 'U'  0x55
+		0x00 0x50 0x50 0x50 0x50 0x30
+		0x00 0x50 0x50 0x50 0x50 0x30
+		# 'V'  0x56
+		0x00 0x50 0x50 0x50 0x20 0x20
+		0x00 0x50 0x50 0x50 0x20 0x20
+		# 'W'  0x57
+		0x00 0x50 0x50 0x70 0x70 0x50
+		0x00 0x50 0x50 0x70 0x70 0x50
+		# 'X'  0x58
+		0x00 0x50 0x50 0x20 0x50 0x50
+		0x00 0x50 0x50 0x20 0x50 0x50
+		# 'Y'  0x59
+		0x00 0x50 0x50 0x20 0x20 0x20
+		0x00 0x50 0x50 0x20 0x20 0x20
+		# 'Z'  0x5A
+		0x00 0x70 0x10 0x20 0x40 0x70
+		0x00 0x70 0x10 0x20 0x40 0x70
+
+		: font_data_control
+		# End of mainblock
+		# '['  0x5B
+		# 0x00 0x30 0x20 0x20 0x20 0x30
+		# 0x00 0x30 0x20 0x20 0x20 0x30
+		# # 'm' filler
+		# 0x00 0x00 0x00 0x00 0x00 0x00
+		# 0x00 0x00 0x00 0x00 0x00 0x00
+		# '^'  0x5E
+		0x00 0x00 0x10 0x28 0x00 0x00
+		0x00 0x00 0x10 0x28 0x00 0x00
+
+		# # '~'  0x7E
+		# 0x00 0x00 0x00 0x28 0x50 0x00
+		# 0x00 0x00 0x00 0x28 0x50 0x00
+    # '\\'  # Filler for "\\" escape code.
+		# 0x00 0x00 0x00 0x00 0x00 0x00
+		# 0x00 0x00 0x00 0x00 0x00 0x00
+
+: key_indicators_active
+
+  : _key_indicator_flags
+
+	  0x00 0x00 # or these bits for a quick check
+
+  : _key_indicator_locations
+
+		# X, Y, char length of any key indicator on screen
+		0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00
+		0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00
+		0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00
+		0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00  0x00 0x00 0x00
