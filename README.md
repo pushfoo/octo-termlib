@@ -121,11 +121,11 @@ there is no closing tag and no stack. Instead, effects are applied
 immediately. You can restore defaults by either binding them to a string
 to draw, or use the dedicated shortcut:
 
-| Name           | Escape code | Action(s)                                                                                          |
-|----------------|-------------|----------------------------------------------------------------------------------------------------|
-| **D**efaults   | `^D`        | <ol><li>Set <pre>bg_color</pre> to `0` invisble.</li><li>Set `fg_color` to 3 (Full color)</li><ol> |
-| **B**ackground | `^BN`       | Set the draw plane(s) for the flat character used to color the background layer                    |
-| **F**oreground | `^FN`       | Set the draw plane(s) for the foreground layer.                                                    |
+| Name           | Escape code | Action(s)                                                                                       |
+|----------------|-------------|-------------------------------------------------------------------------------------------------|
+| **D**efaults   | `^D`        | <ol><li>Set `bg_color` to `0` invisble.</li><li>Set `fg_color` to `3` (Full color)</li><ol> |
+| **B**ackground | `^BN`       | Set the draw plane(s) for the flat character used to color the background layer                 |
+| **F**oreground | `^FN`       | Set the draw plane(s) for the foreground layer.                                                 |
 
 ### As Regex
 
