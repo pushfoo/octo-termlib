@@ -40,6 +40,9 @@
 :const MINUS_ONE        0xFF
 :macro vN--               vN { vN += MINUS_ONE }
 
+
+#TODO: see if i can make a comment macro that throws away the string value?
+
 # General memory helpers
 :macro add16  x_hi_u16 x_lo_u16   y_hi_u16 y_lo_u16   {
 
@@ -119,6 +122,7 @@
 	:macro set-bg-color        SOURCE { bg_color := SOURCE }
 
 	: _set-active-color
+		#
 		v0 <<= v0  # Total multiplication is * 4
 		jump0 _set-active-color-table
 		: _set-active-color-table
@@ -127,8 +131,9 @@
 			plane 2 return
 			plane 3 return
 
-	:macro use-fg-color        { v0 <<= fg_color :call _set-active-color }
-	:macro use-bg-color        { v0 <<= bg_color :call _set-active-color }
+	:macro use-color        vN { v0 <<= vN     :call _set-active-color }
+	:macro use-fg-color        { use-color fg_color }
+	:macro use-bg-color        { use-color bg_color }
 
 	#		i := _color_nibble
 	#		vF := 0xF0
@@ -148,8 +153,10 @@
 		0x00 # Y px
 
 	: _drawing_state_colors
-	  :byte { COLOR_GRAY      } # Foreground color
-		:byte { COLOR_NONE      } # Background color
+	  :byte { COLOR_GRAY } # Foreground color
+		:byte { COLOR_NONE } # Background color
+
+	: _drawing_state_end
 
 
 : _default_drawing_state
@@ -159,8 +166,10 @@
 		:byte { 0 }
 
 	: _default_drawing_state_colors
-		:byte { COLOR_GRAY      }
-		:byte { COLOR_NONE      }
+		:byte { COLOR_GRAY }
+		:byte { COLOR_NONE }
+
+	: _default_drawing_state_end
 
 
 	# Function bodies are inlinable for faster text drawing if needed
@@ -207,31 +216,35 @@
 # Todo: consider storing the decoded values in memory...
 # useful if want to do layout.
 
-	:const CHAR_NULL          0x00
-	:const CHAR_NEWLINE       0x0A
-	:const CHAR_SPACE         0x20
-	:const CHAR_SINGLEQUOTE   0x27
-	:const CHAR_A             0x41  # Boundary, start of letters
-	:const CHAR_B             0x42
+	# Universal control characters
+	:const CHAR_NULL          0x00  # End of message
+	:const CHAR_NEWLINE       0x0A  # \n
+	:const CHAR_ESCAPE        0x5E  # Used to read escape bounds
+
+	# "Block" boundaries for text to allow sparse text rendering
+	:const CHAR_SPACE         0x20  # Boundary: start of early block
+	:const CHAR_SINGLEQUOTE   0x27  # Boundary: end of early block
+	:const CHAR_A             0x41  # Boundary: start of letters
+	:const CHAR_Z             0x5A  # Boundary: end of letters
+
+	# Formatting control characters
+	:const CHAR_B             0x42  # Background
 	:const CHAR_D             0x44  # "Defaults"
-	:const CHAR_K             0x4B  # Key mode
-	:const CHAR_F             0x46
-	:const CHAR_Z             0x5A  # Boundary, end of letters
-	:const CHAR_m							0x6D
-	:const CHAR_ESCAPE        0x5E  #
+	:const CHAR_F             0x46  # Foreground
+
 
 	:macro digit NAME { :calc NAME { CALLS + 0x30 } }
 
-	 digit CHAR_0
-	 digit CHAR_1
-	 digit CHAR_2
-	 digit CHAR_3
-	 digit CHAR_4
-	 digit CHAR_5
-	 digit CHAR_6
-	 digit CHAR_7
-	 digit CHAR_8
-	 digit CHAR_9
+		digit CHAR_0
+		digit CHAR_1
+		digit CHAR_2
+		digit CHAR_3
+		digit CHAR_4
+		digit CHAR_5
+		digit CHAR_6
+		digit CHAR_7
+		digit CHAR_8
+		digit CHAR_9
 
 	:const STYLE_PLANE_0    CHAR_0
 	:const STYLE_PLANE_1    CHAR_1
@@ -249,15 +262,14 @@
   # ^ in text is treated in a way roughty inspired by extended
 	# caret notation for control characters:
   # https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Modified_C0_control_code_sets
-
+	#
   # Control codes:
   #
   # | Control code | Action(s)
-  # |--------------|----------
-  # | "\n"         | 1. += line_height
-  # |              | 2. draw_x := line_start_x
-	# | "^FN"        | Set foreground bitplane
-	# | "^BN"        | Set background bitplane
+  # |--------------|------------------------------------
+  # | `\n`         | y += line_height, x := line_start_x
+	# | "^FN"        | Set foreground bitplane to N
+	# | "^BN"        | Set background bitplane to N
   # | "^D"         | Restore default bitplanes
 
   # Macro used as `text "stringvalue"` will generate ascii bytes.
@@ -280,36 +292,21 @@
 	# :stringmode text-offset "^"    { :pointer long font_data_control }
 
 
-######## Message data ########
-
-: msg_title
-
-		text "\n\n"
-		text "^F3^B0  COLORLIB DEMO\n"
-		text "   ^F3^B2 PRESS ANY KEY ^D\n"
-		text "      ^F2^B3 ALL TEXT DYNAMIC! ^D\0"
-
-: msg_all
-
-		text "^F0^B0 0^F1^B0 1^F2^B0 2^F3^B0 3\n"
-		text "^F0^B1 4^F1^B1 5^F2^B1 6^F3^B1 7\n"
-		text "^F0^B2 8^F1^B2 9^F2^B210^F3^B211\n"
-		text "^F0^B312^F1^B313^F2^B314^F3^B315^D\0"
-
 : current_msg_state
 
 	: _current_msg_position
 		0x00 # Msg start x
-		0x00 # Msy start Y
-		0x00 # Msg Width px
+		0x00 # Msg start Y
 
-		0x00 # Last char index
-		0x00 # Char value
+		0x00 # current_byte_index
+		0x00 # current_byte_value
+
 	: _current_msg_position_end
 
 
+# This has to be a label since we need to use a real
+# memory address to persist the state between calls.
 : restore-current-msg
-#	:next _current_msg_addr i := long 0x0
 	0xF0 0x00
 	: _current_msg_addr
 	  0x00 0x00
@@ -319,44 +316,42 @@
 :macro set-current-msg LABEL {
 
 	# Set the current message to begin showing in a resumable way.
-	#
+
 	# LABEL   : A label-like token for a null-terminated message to start showing.
 	# Returns : void
 
-		:unpack long LABEL :call _set-current-msg
+		:unpack long LABEL     # Store LABEL into vN; long allows reading higher mem
+		i := long _current_msg_addr
+		save v0 - v1  # Uses rStart - rEnd form to avoid advancing
 }
 
-	: _set-current-msg
-		# TODO: erasure / caching!
-		i := long _current_msg_addr
-		save v0 - v1
-	return
-
-:macro peek-next-msg-byte {
-
-	# Load the byte at current_byte_index in the current message to current_byte_value.
+:macro peek-next-msg-byte vN {
+	# Load the byte at current_byte_index in the current message to vN
 
 	:call restore-current-msg
-	v0 := current_byte_index
-	i  += v0
-	load current_byte_value - current_byte_value
-
+	i += current_byte_index
+	load vN - vN
 }
 
+:macro read-msg-byte             vN { current_byte_index += 1  peek-next-msg-byte vN     }
+:macro read-next-byte-as-color   vN { read-msg-byte vN         vN              -= CHAR_0 }
 :macro show-msg START_X START_Y MSG_LABEL {
 
 	# Set the draw cursor to the given X, Y and render a null-terminated message.
-	#
+
 	# START_X   : A X position to move the cursor to.
 	# START_Y   : A Y position to move the cursor to.
 	# MSG_LABEL : A label-like token which points to a null-terminated message.
 
-		msg_start_x := START_X msg_start_y := START_Y
-		set-current-msg MSG_LABEL
-		:call _show-msg-render
-	}
+	# Returns   : void
 
+	msg_start_x  := START_X   msg_start_y := START_Y
+	set-current-msg MSG_LABEL
+	:call           _show-msg-render
 
+}
+
+	# TODO: use :pointer to put this later?
 	: _font_offsets
 		text-offset " !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -410,22 +405,15 @@
 		draw_x += GLYPH_STEP_X_PX
 	return
 
-	:macro read-msg-byte                       { current_byte_index += 1   peek-next-msg-byte  }
-	:macro convert-digit-char-to-int      vN { vN := current_byte_value  vN -= CHAR_0        }
-	:macro read-next-byte-as-color          vN {
-		read-msg-byte
-		convert-digit-char-to-int      v0
-		vN                          := v0
-	}
 
 	: _handle-control
 		#
 		# Assumes non-printable / control byte in current_byte_value
 
 		# current_byte_value  : a current byte which is assumed to be CHAR_ESCAPE
-		# current_byte_index : the current index in bytes into the string
+		# current_byte_index  : the current index in bytes into the string
 
-	  read-msg-byte
+	  read-msg-byte current_byte_value
 		if current_byte_value != CHAR_F then jump _handle-control-bg-color
 
 			read-next-byte-as-color  fg_color
@@ -442,6 +430,7 @@
 
 			set-bg-color COLOR_NONE
 			set-fg-color COLOR_GRAY
+			use-fg-color
 
 		: _handle-control-end
 	return
@@ -453,15 +442,13 @@
 
 	: _show-msg-render
 			# :breakpoint render
-			set-bg-color COLOR_NONE
-			set-fg-color COLOR_GRAY
 
 			current_byte_index := 0
 			set-draw-coords-to msg_start_x msg_start_y
 
 			loop
 
-				peek-next-msg-byte
+				peek-next-msg-byte current_byte_value
 				# Exit on end of message, no exceptions
 				while current_byte_value != END_OF_STRING
 
@@ -489,12 +476,26 @@
 ###                          Main State                         ###
 ###################################################################
 
+######## Message data ########
 
+: msg_title
+		text "\n\n"
+		text "^F3^B0  COLORLIB DEMO\n"
+		text "   ^F3^B2 PRESS ANY KEY ^D\n"
+		text "      ^F1^B3 ALL TEXT DYNAMIC! ^D\0"
+
+: msg_all
+
+		text "^F0^B0 0^F1^B0 1^F2^B0 2^F3^B0 3\n"
+		text "^F0^B1 4^F1^B1 5^F2^B1 6^F3^B1 7\n"
+		text "^F0^B2 8^F1^B2 9^F2^B210^F3^B211\n"
+		text "^F0^B312^F1^B313^F2^B314^F3^B315^D\0"
+
+####### User code #######
 : main
 	hires
 
 	:macro msg-screen MSG_LABEL {
-		plane 3
 		clear
 		show-msg 0 0 MSG_LABEL
 		v0 := key
@@ -505,6 +506,10 @@
 		msg-screen msg_all
 	again
 
+
+###################################################################
+###                           Font Data                         ###
+###################################################################
 
 : pixel_data
 
@@ -550,14 +555,9 @@
 		0x00 0x00 0x00 0x00 0x00 0x00 0xE0 0x00
 		0x00 0x00 0x00 0x00 0x00 0x00 0x00
 
-	# need to compensate before usage
-  # : font_offsets
-	  #text-offsets "0123456ABCDEFGHIJKLMNOPQRSTUVWXYZ.,:!?'\" \\"
-
 	: font_data
 		# Based on Tom Thumb, used under CC0 Public Domain Dedication
 		# Original URL: https://robey.lag.net/2010/01/23/tiny-monospace-font.html
-
 
 		# ' '  0x20
 		0x00 0x00 0x00 0x00 0x00 0x00
@@ -746,6 +746,9 @@
 		0x00 0x70 0x10 0x20 0x40 0x70
 
 		: font_data_control
+
+		# Leftovers from before deciding against bash escape codes
+
 		# End of mainblock
 		# '['  0x5B
 		# 0x00 0x30 0x20 0x20 0x20 0x30
@@ -753,6 +756,7 @@
 		# # 'm' filler
 		# 0x00 0x00 0x00 0x00 0x00 0x00
 		# 0x00 0x00 0x00 0x00 0x00 0x00
+
 		# '^'  0x5E
 		0x00 0x00 0x10 0x28 0x00 0x00
 		0x00 0x00 0x10 0x28 0x00 0x00
