@@ -121,20 +121,20 @@ there is no closing tag and no stack. Instead, effects are applied
 immediately. You can restore defaults by either binding them to a string
 to draw, or use the dedicated shortcut:
 
-| Name           | Escape code | Action(s)                                                                                       |
-|----------------|-------------|-------------------------------------------------------------------------------------------------|
+| Name           | Escape code | Action(s)                                                                                   |
+|----------------|-------------|---------------------------------------------------------------------------------------------|
 | **D**efaults   | `^D`        | <ol><li>Set `bg_color` to `0` invisble.</li><li>Set `fg_color` to `3` (Full color)</li><ol> |
-| **B**ackground | `^BN`       | Set the draw plane(s) for the flat character used to color the background layer                 |
-| **F**oreground | `^FN`       | Set the draw plane(s) for the foreground layer.                                                 |
+| **B**ackground | `^BN`       | Set the draw plane(s) for the flat character used to color the background layer             |
+| **F**oreground | `^FN`       | Set the draw plane(s) for the foreground layer.                                             |
 
 ### As Regex
 
 **TL;DR**: There are interactive regex playgrounds linked below.
 
-| Regex Flavor           | Regex101 Link                             | Rough expression                                         |
-|------------------------|-------------------------------------------|----------------------------------------------------------|
-| ECMAScript/JavaScript  | [Try it](https://regex101.com/r/0366WB/)  | `const fmt = /(\^(?<action>[A-Z])(?<num>\d?)+)/`         |
-| Python                 | [Try it](https://regex101.com/r/4upDdM/)  | `fmt = re.compile(r'\^(?P<action>[A-Z])(?P<num>\d)?')`   |
+| Regex Flavor           | Regex101 Link                             | Rough expression                       |
+|------------------------|-------------------------------------------|----------------------------------------|
+| ECMAScript/JavaScript  | [Try it](https://regex101.com/r/0366WB/)  | `/(\^(?<action>[A-Z])(?<num>\d?)+)/`   |
+| Python                 | [Try it](https://regex101.com/r/4upDdM/)  | `r'\^(?P<action>[A-Z])(?P<num>\d)?'`   |
 
 ## Current Limitations
 
