@@ -39,11 +39,11 @@ Bash's color escapes are not the tool I was looking for:
 
 1.  Bash-style color escapes are hard to read:
 
-    Bash-style escape                 octo-termlib syntax
-    --------------------------------- ------------------------------
-    `\e[37mLight gray foreground\]`   `^F1Light gray foreground^D`
-    `\e[41mRed background\]`          `^B2Red background^D`
-    `\e[41m\e[37Both colors\]\]`      `^B2^F3Both colors^D`
+    | Bash-style escape                | octo-termlib syntax           |
+    |----------------------------------|-------------------------------|
+    | `\e[37mLight gray foreground\]`  | `^F1Light gray foreground^D`  |
+    | `\e[41mRed background\]`         | `^B2Red background^D`         |
+    | `\e[41m\e[37Both colors\]\]`     | `^B2^F3Both colors^D`         |
 
 2.  [Octo\'s `:stringmode` macro](https://johnearnest.github.io/Octo/docs/Manual.html#strings)
     does not support `\e`
@@ -131,13 +131,12 @@ to draw, or use the dedicated shortcut:
 
 **TL;DR**: There are interactive regex playgrounds linked below.
 
-  Regex Flavor            Regex101 Link                              Rough expression
-  ----------------------- ------------------------------------------ --------------------------------------------------------
-  ECMAScript/JavaScript   [Try it](https://regex101.com/r/0366WB/)   `const fmt = /(\^(?<action>[A-Z])(?<num>\d?)+)/`
-  Python                  [Try it](https://regex101.com/r/4upDdM/)   `fmt = re.compile(r'\^(?P<action>[A-Z])(?P<num>\d)?')`
+| Regex Flavor           | Regex101 Link                             | Rough expression                                         |
+|------------------------|-------------------------------------------|----------------------------------------------------------|
+| ECMAScript/JavaScript  | [Try it](https://regex101.com/r/0366WB/)  | `const fmt = /(\^(?<action>[A-Z])(?<num>\d?)+)/`         |
+| Python                 | [Try it](https://regex101.com/r/4upDdM/)  | `fmt = re.compile(r'\^(?P<action>[A-Z])(?P<num>\d)?')`   |
 
 ## Current Limitations
-
 
 **TL;DR**: There are a lot of brittle assumptions and no way to keep
 `vF` results.
@@ -152,13 +151,13 @@ Despite its potential, the current implementation is currently
 incomplete in ways which limit its use for more demanding tasks. Some of
 the most important examples are outlined below.
 
-  Current Implementation                                     Limitation
-  ---------------------------------------------------------- --------------------------------------------------------------------
-  No form of error handling in any shape                     Bad input can break non-debugger status displays.
-  One message position stored at time without caching        Library best used for predictable state such as JRPG text boxes
-  Assumes monospace fonts                                    Unexpected character sizes will not render highlighting correctly.
-  Layer draw calls skip if their `plane` is 0                Inconsistent timing if plane values change
-  Storing `vF` from successive draw calls is unimplemented   Can\'t detect XOR collisions while batch drawing text
+| Current Implementation                                    | Limitation                                                         |
+|-----------------------------------------------------------|--------------------------------------------------------------------|
+| No form of error handling in any shape                    | Bad input can break non-debugger status displays.                  |
+| One message position stored at time without caching       | Library best used for predictable state such as JRPG text boxes    |
+| Assumes monospace fonts                                   | Unexpected character sizes will not render highlighting correctly. |
+| Layer draw calls skip if their `plane` is 0               | Inconsistent timing if plane values change                         |
+| Storing `vF` from successive draw calls is unimplemented  | Can\'t detect XOR collisions while batch drawing text              |
 
 See the following to learn more:
 
@@ -192,14 +191,11 @@ example, these kit computers:
 -   came with less than 2 KB of RAM
 
 Systems from this era made the most of their limited resources by
-reserving [control
-characters](https://en.wikipedia.org/wiki/Control_character) for
-communication and markup, as well as using [escape
-characters](https://en.wikipedia.org/wiki/Escape_character) to indicate
-changes in encoding.
+reserving [control characters](https://en.wikipedia.org/wiki/Control_character) for
+communication and markup, as well as using [escape characters](https://en.wikipedia.org/wiki/Escape_character)
+to indicate changes in encoding.
 
-Since control characters are often represented with [caret
-notation](https://en.wikipedia.org/wiki/Caret_notation), this library
+Since control characters are often represented with [caret notation](https://en.wikipedia.org/wiki/Caret_notation), this library
 re-uses it as a convenient default escape character. However, the final
 value is not converted to a byte literal but left as an ASCII `^`.
 
