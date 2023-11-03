@@ -168,9 +168,9 @@ See the following to learn more:
 
 | Tentative Example        | Meaning                                       | Intended Purpose                    |
 |--------------------------|-----------------------------------------------|-------------------------------------|
-| text "^R5^C5example"     | Jump drawing cursor to row 5, column 5        | Replacing or deleting specific characters |
-| text "^X51^Y23example"   | Move the drawing cursor to screen pixel 51,32 | Fast kerning experimentation.       |
-| text "^E3"               | XOR entire screen with pixels using `plane 3` | Change / flash colors for errors    |
+| `text "^R5^C5example"`   | Jump drawing cursor to row 5, column 5        | Replacing or deleting specific characters |
+| `text "^X51^Y23example"` | Move the drawing cursor to screen pixel 51,32 | Fast kerning experimentation.       |
+| `text "^E3"`             | XOR entire screen with pixels using `plane 3` | Change / flash colors for errors    |
 
 Future features could also include:
 
