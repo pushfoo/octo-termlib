@@ -1,0 +1,34 @@
+:include "render_core.8o"  # Remove this line if using the template
+
+#######  Start of User code  #######
+: main
+
+	hires
+
+	:macro msg-screen MSG_LABEL {
+		clear
+		show-msg 0 0 MSG_LABEL
+		v0 := key
+	}
+
+	loop
+		msg-screen msg_title
+		msg-screen msg_all
+	again
+
+: msg_title
+		text "\n\n"
+		text "^F3^B0 TERMLIB DEMO\n"
+		text "   ^F3^B2 PRESS ANY KEY ^D\n"
+		text "     ^F1^B3 ALL TEXT DYNAMIC! ^D\0"
+
+: msg_all
+
+		text "^F0^B0 0^F1^B0 1^F2^B0 2^F3^B0 3\n"
+		text "^F0^B1 4^F1^B1 5^F2^B1 6^F3^B1 7\n"
+		text "^F0^B2 8^F1^B2 9^F2^B210^F3^B211\n"
+		text "^F0^B312^F1^B313^F2^B314^F3^B315^D\0"
+
+#######   End of User Code   ######
+
+:include "render_impl.8o"  # Remove this line if using the template

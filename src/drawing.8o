@@ -1,0 +1,151 @@
+:if KEEP_META_COMMENTS
+# Conditional include for common libs & mark
+:end
+:unless TERMLIB_COMMON
+:include "common.8o"
+:else
+:const  TERMLIB_DRAWING 1  # Mark drawing routines as imported, some size impact
+:end
+##################################################################
+##################################################################
+####                   General Rendering                      ####
+##################################################################
+##################################################################
+
+:const HIREZ_WIDTH_PX    128
+:const HIREZ_HEIGHT_PX    64
+
+##################################################################
+####          Current drawing state & persistence             ####
+##################################################################
+
+:alias draw_x             v5  #: The draw cursor's left edge
+:alias draw_y             v6  #: The draw cursor's top edge
+
+:macro set-draw-coords-to  X   Y  { draw_x := X draw_y := Y }
+
+	#: Set the current draw coordinates to the given value.
+	#:
+	#: Args:
+	#: 		X : vN or u8
+	#: 			The X coordinate to set
+	#:    Y : vN or u8
+	#:      The y coordinate to set
+
+# Configurable color allows data to set the current color.
+# See the font section futher down for more information.
+:alias fg_color           v7  #: Current foreground drawing color / planes
+:alias bg_color           v8  #: Current background drawing color / planes
+
+:alias draw_reg_0 draw_x  :alias draw_reg_end bg_color
+
+:const PLANE_NONE          0      # Invisible
+:const PLANE_1             1      # Plane 1
+:const PLANE_2             2      # Plane 2
+:const PLANE_3             3      # Both planes
+
+:const COLOR_NONE          PLANE_NONE
+:const COLOR_WHITE         PLANE_1
+:const COLOR_RED           PLANE_2
+:const COLOR_GRAY          PLANE_3
+
+	:macro set-fg-color        SOURCE { fg_color := SOURCE }
+
+		#: Set the foreground plane mask to the passed value
+		#:
+		#: Args:
+		#:		vN : vN or const u8
+		#:			A register containing a valid plane mask.
+
+	:macro set-bg-color        SOURCE { bg_color := SOURCE }
+
+		#: Set the background plane mask to the passed value
+		#:
+		#: Args:
+		#:		SOURCE : vN or const u8
+		#:			A register containing a valid plane mask.
+
+	: _set-active-color
+
+		# This implementation sacrifices space & cycles to avoid clobbering i.
+		# Total cycles: 1 (the <<= & :call in the wrapper macro + the body)
+
+		v0 <<= v0  # Total multiplication is * 4
+		jump0 _set-active-color-table
+		: _set-active-color-table
+			plane 0 return
+			plane 1 return
+			plane 2 return
+			plane 3 return
+
+    #   # This implementation takes 5 cycles instead of 7 but clobbers i
+	#		i := _color_nibble
+	#		vF := 0xF0
+	#		vF |= fg_color
+	#		save vF - vF
+	#		: _color_nibble
+	#		plane 3
+	#	return
+
+	:macro use-color        vN { v0 <<= vN     :call _set-active-color }
+
+		#: Set the plane mask to the value in vN
+		#:
+		#: Args:
+		#:		vN : vN
+		#:			A register containing a valid plane mask.
+		#: Clobbers:
+		#:		v0, vF
+
+	:macro use-fg-color        { use-color fg_color }
+
+		#: Set the current plane mask to the value in fg_color
+		#:
+		#: Clobbers:
+		#:		v0, vF
+
+	:macro use-bg-color        { use-color bg_color }
+		#: Set the plane mask to the value in bg_color
+		#:
+		#: Clobbers:
+		#:		v0, vF
+
+
+# Drawing state persistence between states / actions
+
+: _drawing_state
+
+  : _drawing_state_xy
+
+    0x00 # X px
+		0x00 # Y px
+
+	: _drawing_state_colors
+	  :byte { COLOR_GRAY } # Foreground color
+		:byte { COLOR_NONE } # Background color
+
+	: _drawing_state_end
+
+
+: _default_drawing_state
+
+  : _default_drawing_state_xy
+		:byte { 0 }
+		:byte { 0 }
+
+	: _default_drawing_state_colors
+		:byte { COLOR_GRAY }
+		:byte { COLOR_NONE }
+
+	: _default_drawing_state_end
+
+	# Function bodies are inlinable for faster text drawing if needed
+	:macro _restore_drawing_state_at LABEL { i := LABEL load draw_reg_0 - draw_reg_end }
+	:macro _persist_drawing_state_at LABEL { i := LABEL save draw_reg_0 - draw_reg_end }
+
+	: restore-drawing-state
+		_restore_drawing_state_at _drawing_state
+		return
+	: persist-drawing-state
+		_persist_drawing_state_at _drawing_state
+		return

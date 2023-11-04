@@ -1,0 +1,93 @@
+:const TERMLIB_COMMON 1   # Marks common features as imported, 0 code size impact
+
+##################################################################
+##################################################################
+####                     General / Setup                      ####
+##################################################################
+##################################################################
+
+# These features are all aliases, constants, and macros. They do
+# not increase code size unless the macros are called.
+
+:alias vJump0 v0
+
+# Define tricky values as constants.
+:const SUB_OP_UNDERFLOW    0  # vF's value when subtraction underflows
+:const ADD_OP_OVERFLOW     1  # vF's value when addition overflows
+:const MINUS_ONE        0xFF  # -1 as the 8-bit two's complement
+
+:macro vN--               vN { vN += MINUS_ONE }
+
+
+#TODO: see if i can make a comment macro that throws away the string value?
+
+:macro add_u16_u8   x_hi_u16 x_lo_u16   y_lo_u8             {
+
+	#: Increment the x registers by the unsigned 8-bit value in y_lo_u8
+	#:
+	#: Params:
+	#: 	x_hi_u16 : vN
+	#:			The hi byte of the destination; must be a register
+	#: 	x_lo_u16 : vN
+	#: 		The lo byte of the destination; must be a register
+	#: 	y_lo_u8  : vN or const u8
+	#:			The hi byte of a 16 bit constant, or a register holding one
+	#: Clobbers:
+	#:  vF
+
+	x_lo_u16 += lo_u16
+	x_hi_u16 += vF
+
+}
+
+:macro add_u16_u16  x_hi_u16 x_lo_u16   y_hi_u16 y_lo_u16   {
+
+	#: Add a 16 bit value to another and store the result in x_hi and x_lo
+	#:
+	#: Args:
+	#: 	x_hi_u16 : vN
+	#:			The hi byte of the destination
+	#: 	x_lo_u16 : vN
+	#:			The lo byte of the destination register
+	#: 	y_hi_u16 : vN or const u8
+	#:			The hi byte of a 16 bit constant or a register holding one
+	#: 	y_lo_u16 : vN or const u8
+	#: 		The lo byte of a 16 bit constant or a register holding one
+	#: Clobbers:
+	#: 	vF
+
+	x_lo_u16 += y_lo_u16
+	x_hi_u16 += vF
+	x_hi_u16 += y_lo_u16
+
+}
+
+# General memory helpers
+:macro unpack-and-increment LABEL hi_u16 lo_u16 {
+
+	#: Unpack LABEL to v0, v1 in long mode and offset it by the passed u16.
+	#:
+	#: Args:
+	#: 	LABEL     : label
+	#:			a label or calculation result for a location in memory
+	#: 	hi_u16    : a V register or an 8-bit constant
+	#:			hi byte of a big endian unsigned 16 bit int or constant
+	#: 	lo_u16    : a V register or an 8-bit constant
+	#:   	lo byte of a big endian unsigned 16 bit int or constant
+	#: Clobbers:
+	#: 	vF
+
+
+	:unpack long LABEL
+	v1 += lo_u16
+	v0 += vF
+	v0 += hi_u16
+
+}
+
+# Time and feedback controls
+:macro start_buzzer_though vN amount { vN := amount buzzer := vN }
+:macro start_buzzer           amount { vF := amount buzzer := vF }
+
+:macro start_timer_through vN amount { vN := amount delay  := vN }
+:macro start_timer            amount { vF := amount delay  := vF }
