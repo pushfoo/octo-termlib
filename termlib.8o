@@ -2,7 +2,7 @@
 #
 # A terminal-inspired rendering library for XO-CHIP. Originally
 # written for OctoJam 10 (https://itch.io/jam/octojam-10).
-#
+
 # For more information, see:
 # * README.md for general information
 # * Playable demo at https://pushfoo.itch.io/termlib-demo.
@@ -625,9 +625,9 @@
 
 : msg_title
 		text "\n\n"
-		text "^F3^B0  TERMLIB DEMO\n"
-		text "    ^F3^B2 PRESS ANY KEY ^D\n"
-		text "      ^F1^B3 ALL TEXT DYNAMIC! ^D\0"
+		text "^F3^B0 TERMLIB DEMO\n"
+		text "   ^F3^B2 PRESS ANY KEY ^D\n"
+		text "     ^F1^B3 ALL TEXT DYNAMIC! ^D\0"
 
 : msg_all
 
