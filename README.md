@@ -14,11 +14,17 @@ the output below it:
 ```
 : message_string
     text "^B3^F2"
-	text "PLANE 3 BG PLANE 2 TXT\n"
+    text "PLANE 3 BG PLANE 2 TXT\n"
     text "^D"  # Reset the colors
     text "PLANE 0 BG PLANE 3 TXT\n"
-	text "^B2" # Set BG plane to 3
-	text "PLANE 2 BG PLANE 3 TXT\0" # \0 ends the message.
+    text "^B2" # Set BG plane to 3
+    text "PLANE 2 BG PLANE 3 TXT\"
+    text "\0" # \0 ends the message.
+
+:main
+    show-msg 0 0 message-string
+
+    v0 := key # wait for input before the rest of the program
 ```
 ![example output](docs/example_text.png)
 
@@ -175,16 +181,16 @@ the most important examples are outlined below.
 
 See the following to learn more:
 
--   The [Inspiration](inspiration) heading below
+-   The [Inspiration](#inspiration) heading below
 -   The [XO-Chip documentation](http://johnearnest.github.io/Octo/docs/XO-ChipSpecification.html#bitplanes)
 
 ### Planned Additions
 
-| Tentative Example        | Meaning                                       | Intended Purpose                    |
-|--------------------------|-----------------------------------------------|-------------------------------------|
+| Tentative Example        | Meaning                                       | Intended Purpose                          |
+|--------------------------|-----------------------------------------------|-------------------------------------------|
 | `text "^R5^C5example"`   | Jump drawing cursor to row 5, column 5        | Replacing or deleting specific characters |
-| `text "^X51^Y23example"` | Move the drawing cursor to screen pixel 51,32 | Fast kerning experimentation.       |
-| `text "^E3"`             | XOR entire screen with pixels using `plane 3` | Change / flash colors for errors    |
+| `text "^X51^Y23example"` | Move the drawing cursor to screen pixel 51,32 | Fast kerning experimentation.             |
+| `text "^E3"`             | XOR entire screen with pixels using `plane 3` | Change / flash colors for errors          |
 
 Future features could also include:
 
@@ -221,7 +227,7 @@ It has numerous advantages:
     without sacrificing any clarity
 2.  Combining styles is far more legible:
 3.  It\'s easier to implement in Octo
-4.  It renders cleanly in [Octo\'s debugger](#octo-debugger-doc),
+4.  It renders cleanly in [Octo\'s debugger][octo-debugger-doc],
     unlike unprintable byte literals
 5.  The resulting escapes are easier to distinguish than hex codes
 6.  It\'s easier to enter than hex codes
