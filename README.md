@@ -1,8 +1,12 @@
 # octo-termlib
 
-**TL;DR**: A terminal-inspired text rendering library for XO-CHIP
-initially written as an [Octojam 10](https://itch.io/jam/octojam-10)
+**TL;DR**: A terminal-inspired text rendering library for XO-CHIP.
+
+
+There's [an interactive demo on itch.io](https://pushfoo.itch.io/termlib-demo).
+The project was initially written as an [Octojam 10](https://itch.io/jam/octojam-10)
 entry.
+
 
 It supports notions of foreground and background:
 
