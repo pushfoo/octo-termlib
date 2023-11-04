@@ -8,15 +8,22 @@ The project was initially written as an [Octojam 10](https://itch.io/jam/octojam
 entry.
 
 
-It supports notions of foreground and background:
+It supports notions of foreground and background. This code produces
+the output below it:
 
 ```
 : message_string
-    text "^B3^F1 This line renders as color 2 text inset"
-    text        " into a color 3 background due to XOR\n"
-    text        "^D"  # Reset the colors
-    text        "This line renders as color 3 on empty\0"
+    text "^B3^F2"
+	text "PLANE 3 BG PLANE 2 TXT\n"
+    text "^D"  # Reset the colors
+    text "PLANE 0 BG PLANE 3 TXT\n"
+	text "^B2" # Set BG plane to 3
+	text "PLANE 2 BG PLANE 3 TXT\0" # \0 ends the message.
 ```
+[!example output](docs/example_text.png)
+
+Colors depend on your current XO-CHIP color palette.
+
 
 ## Table of contents
 
@@ -85,11 +92,13 @@ library, drawing the formatted text on it consists of the following:
     v0 := key
     ```
 
+The result:
+![The title screen of the demo on itch.io](docs/title_screen.png)
+
 Every `^` starts an escape sequence which changes the drawing planes
 instead of rendering as text. Some set non-default colors, while others
 restore defaults.
 
-The result:
 
 The second screen shows off the full range of color combinations by
 using the following syntax:
@@ -103,6 +112,7 @@ using the following syntax:
 ```
 
 The result:
+![The result of the combo screen text](docs/combo_screen.png)
 
 ## Is it fast?
 
