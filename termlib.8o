@@ -322,25 +322,6 @@
 	:const MAINBLOCK_END    CHAR_Z
 	:calc  MAINBLOCK_SPAN   { MAINBLOCK_END - MAINBLOCK_START }
 
-  # Macro used as `text "stringvalue"` will generate ascii bytes.
-  :stringmode text "\0\n !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^m" {
-	  :byte { CHAR }
-  }
-		# :stringmode text "^" { :byte CHAR_ESCAPE }
-
-	:stringmode text-offset "'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^" {
-		#( ( MAINBLOCK_START <= CHAR ) and ( CHAR <= MAINBLOCK_END ) ) *
-		:pointer { ( GLYPH_DATA_LENGTH_BYTES * 3 )
-							 + ( ( 3 + CHAR - MAINBLOCK_START ) *  GLYPH_DATA_LENGTH_BYTES ) }
-		# :byte { ( mainblock-position >> 8 ) & 0xFF ) }
-		# :byte {   mainblock-position        & 0xFF ) }
-	}
-	# \0 !\"',./
-	:stringmode text-offset " !\"" {
-		:pointer { ( ( CHAR - CHAR_SPACE ) * GLYPH_DATA_LENGTH_BYTES  ) }
-	}
-	# :stringmode text-offset "^"    { :pointer long font_data_control }
-
 
 : current_msg_state
 
@@ -442,7 +423,7 @@
 	#:			A label-like token which points to a null-terminated message.
 	#:
 	#: Clobbers:
-	#: 	v0 - v3, vF, i
+	#: 	i, v0 - v3, vF
 
 	msg_start_x  := START_X   msg_start_y := START_Y
 	set-current-msg MSG_LABEL
@@ -450,14 +431,25 @@
 
 }
 
-	# TODO: use :pointer to put this later?
-	: _font_offsets
-		text-offset " !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 	: _render-visible-glyph
 
-		# Render current_byte_value to the screen in the glyph table.
-
+    #: Render current_byte_value to the screen using the glyph table
+		#:
+		#: Args:
+		#: 	 draw_x : vN
+		#:		  The screen x position to draw to in pixels
+		#:	 draw_y : vN
+		#: 			The screen y position to draw to in pixels
+		#:   current_byte_value : vN
+		#:      A value which is in font_offsets and font_data.
+		#:   bg_color: vN
+		#:			Which planes to draw the background on, if any.
+		#:	 fg_color: vN
+		#:		  Which planes to draw the foreground on, if any.
+		#: Clobbers:
+		#:	 i, v0 - v3, vF
+		#: Updates:
+		#:   draw_x
 
 		# skip bg if no bg
 		if bg_color == 0 then jump _render_fg_glyph
@@ -484,7 +476,8 @@
 			v2 <<= v2
 
 			# Look up the raw offset value within the font
-			i := long _font_offsets
+			#i := long _font_offsets
+			0xF0 0x00 :pointer font_offsets
 			i += v2
 			load v2 - v3
 
@@ -606,6 +599,25 @@
 ###                          Main State                         ###
 ###################################################################
 
+# Macro used as `text "stringvalue"` will generate ascii bytes.
+:stringmode text "\0\n !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^m" {
+	:byte { CHAR }
+}
+	# :stringmode text "^" { :byte CHAR_ESCAPE }
+
+:stringmode text-offset "'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^" {
+	#( ( MAINBLOCK_START <= CHAR ) and ( CHAR <= MAINBLOCK_END ) ) *
+	:pointer { ( GLYPH_DATA_LENGTH_BYTES * 3 )
+						 + ( ( 3 + CHAR - MAINBLOCK_START ) *  GLYPH_DATA_LENGTH_BYTES ) }
+	# :byte { ( mainblock-position >> 8 ) & 0xFF ) }
+	# :byte {   mainblock-position        & 0xFF ) }
+}
+# \0 !\"',./
+:stringmode text-offset " !\"" {
+	:pointer { ( ( CHAR - CHAR_SPACE ) * GLYPH_DATA_LENGTH_BYTES  ) }
+}
+# :stringmode text-offset "^"    { :pointer long font_data_control }
+
 ######## Message data ########
 
 : msg_title
@@ -644,26 +656,6 @@
 
 : pixel_data
 
-  : grid_16x16_color # wastes some bytes to get fast grid drawing
-		0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-		0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00
-		0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00
-		0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00 0x00 0x00
-		0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00 0x00 0x00
-		0x00 0x00 0x00 0x00 0x00 0x00 0x82 0x08 0x00 0x00
-		0x00 0x00 0x00 0x00
-		0x00 # Pad to align to 16 bit widths
-
-	: enemy_cursor_color
-	  0x84 0x00 0x00 0x00 0x00 0x84 0x00 0x00 0x00 0x00
-		0x00 0x00 0x00 0x00 0x00 0x78 0x84 0x84 0x84 0x84
-		0x78 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-
-	: player_cursor_color
-		0x78 0x84 0x84 0x84 0x84 0x78 0x00 0x00 0x00 0x00
-		0x00 0x00 0x00 0x00 0x00 0x84 0x00 0x00 0x00 0x00
-		0x84 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
-
 	: highlight_block_prefix # 1-px wide pre block item
 	  0x80 0x80 0x80 0x80 0x80 0x80 0x80
 		0x80 0x80 0x80 0x80 0x80 0x80 0x80
@@ -685,6 +677,10 @@
 		0x00 0x00 0x00 0x00 0x00 0x00 0x00
 		0x00 0x00 0x00 0x00 0x00 0x00 0xE0 0x00
 		0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+
+	: font_offsets
+		text-offset " !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	: font_data
 		# Based on Tom Thumb, used under CC0 Public Domain Dedication
