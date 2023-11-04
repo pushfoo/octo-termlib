@@ -20,7 +20,7 @@ the output below it:
 	text "^B2" # Set BG plane to 3
 	text "PLANE 2 BG PLANE 3 TXT\0" # \0 ends the message.
 ```
-[!example output](docs/example_text.png)
+![example output](docs/example_text.png)
 
 Colors depend on your current XO-CHIP color palette.
 
