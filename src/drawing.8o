@@ -1,7 +1,11 @@
-# Conditional include for
-:unless TERMLIB_COMMON :include "common.8o" :end
+:if KEEP_META_COMMENTS
+# Conditional include for common libs & mark
+:end
+:unless TERMLIB_COMMON
+:include "common.8o"
+:else
 :const  TERMLIB_DRAWING 1  # Mark drawing routines as imported, some size impact
-
+:end
 ##################################################################
 ##################################################################
 ####                   General Rendering                      ####
@@ -18,7 +22,7 @@
 :alias draw_x             v5  #: The draw cursor's left edge
 :alias draw_y             v6  #: The draw cursor's top edge
 
-:macro set-draw-coords-to  X    Y  { draw_x := X draw_y := Y }
+:macro set-draw-coords-to  X   Y  { draw_x := X draw_y := Y }
 
 	#: Set the current draw coordinates to the given value.
 	#:
@@ -62,7 +66,10 @@
 		#:			A register containing a valid plane mask.
 
 	: _set-active-color
-		#
+
+		# This implementation sacrifices space & cycles to avoid clobbering i.
+		# Total cycles: 1 (the <<= & :call in the wrapper macro + the body)
+
 		v0 <<= v0  # Total multiplication is * 4
 		jump0 _set-active-color-table
 		: _set-active-color-table
@@ -70,6 +77,15 @@
 			plane 1 return
 			plane 2 return
 			plane 3 return
+
+    #   # This implementation takes 5 cycles instead of 7 but clobbers i
+	#		i := _color_nibble
+	#		vF := 0xF0
+	#		vF |= fg_color
+	#		save vF - vF
+	#		: _color_nibble
+	#		plane 3
+	#	return
 
 	:macro use-color        vN { v0 <<= vN     :call _set-active-color }
 
@@ -94,13 +110,6 @@
 		#: Clobbers:
 		#:		v0, vF
 
-	#		i := _color_nibble
-	#		vF := 0xF0
-	#		vF |= fg_color
-	#		save vF - vF
-	#		: _color_nibble
-	#		plane 3
-	#	return
 
 # Drawing state persistence between states / actions
 

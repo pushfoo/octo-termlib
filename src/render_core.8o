@@ -1,24 +1,25 @@
-###################################################################
-###                        Text rendering                       ###
-###################################################################
-
-# Everything but 
-# TERMLIB core fuctioality
 :if KEEP_META_COMMENTS
-#
-# A terminal-inspired rendering library for XO-CHIP. Originally
-# written for OctoJam 10 (https://itch.io/jam/octojam-10).
-#
-# For more information, see:
-# * README.md for general information
-# * Playable demo at https://pushfoo.itch.io/termlib-demo.
-# * The doc style overview at docs/docstyle.md
-:end
 
+# Include this file:
+# 1. After font metadata definitions
+# 2. Before the main body of your program
+
+# Forgiving ifndef-like imports for dependencies.
+:end
 :unless TERMLIB_COMMON  :include  "common.8o" :end
 :unless TERMLIB_DRAWING :include "drawing.8o" :end
 
+###################################################################
+###                      Text rendering core                    ###
+###################################################################
 
+# This section contains the high-level description of how to render
+# text. The character-specific functions are kept in render_impl.8o,
+# and can be overridden by defining the following before including
+# render_impl.8o:
+
+# 1. A CUSTOM_$FUNC_NAME constant as shown in the file
+# 2. The corresponding function
 
 # UI data we'll need
 :const GLYPH_WIDTH_PX          4 # Usable glyph area
@@ -255,3 +256,5 @@
 
 	: _show-msg-render-end
 	return
+
+:include "default_font_stringmodes.8o"
