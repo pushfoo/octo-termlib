@@ -1,26 +1,46 @@
 # Project Conventions
 
 [pyglet]: https://github.com/pyglet/pyglet
+[chiplet]: https://github.com/gulrak/chiplet
 
-**TL;DR:** an evolving hybrid of the following:
+**TL;DR:** I'm open to feedback on the project's blend of:
 
 * Markdown
-* Styles I saw in other Octo projects
-* [pyglet][pyglet]'s doc style,
-  which is a variant of Google's Python docstring style.
+* Styles I saw in other Octo projects, such as the [chiplet][chiplet]
+  preprocessor.
 
-I'm open to feedback. At some point, I might write scripts or
-adapters to render this to some endpoint as friendly HTML / text.
+* [pyglet][pyglet]'s doc style, a variant of Google's Python docstring style.
 
-## Table of contents:
+There's no rendering of the doc data to HTML or Markdown *yet*, but
+that may change.
 
-1. [Register usage](#register-usage)
-2. [The `#:` Prefix](#the--prefix)
-3. [Names](#names)
-4. [Data types](#data-types)
-5. [Function Doc Style](#function-doc-style)
+## Table of contents
 
-## Comment types
+1. [Includes & Overrides](#includes--overrides)
+2. [Register usage](#register-usage)
+3. [The `#:` Prefix](#the--prefix)
+4. [Names](#names)
+5. [Data types](#data-types)
+6. [Function Doc Style](#function-doc-style)
+
+## Includes & Overrides
+
+This project uses [chiplet][chiplet] for builds. Much like C/C++, it uses
+defines to prevent repeating includes and definitions. These constants use
+`TERMLIB_` as a prefix:
+
+| Type         | Example                 | Corresponding guard constant      |
+|--------------|-------------------------|-----------------------------------|
+| File include | `drawing.8o`            | `:const TERMLIB_DRAWING 1`        |
+| Function     | `: handle-newline`      | `:const TERMLIB_HANDLE_NEWLINE 1` |
+| Macro        | `:macro use-color {...` | `:const TERMLIB_USE_COLOR 1`      |
+
+You can override certain functions by defining the following before importing
+the file which would otherwise define it:
+
+1. A replacement function or macro with the same behavior
+2. The corresponding constant, which prevents it from being
+   declared by project files
 
 ## Register usage:
 
