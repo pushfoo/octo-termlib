@@ -1,35 +1,55 @@
 # octo-termlib
 
-**TL;DR**: A terminal-inspired text rendering library for XO-CHIP.
+[itch]: https://pushfoo.itch.io/termlib-demo
+[octojam10]: https://itch.io/jam/octojam-10
+[chiplet]: https://github.com/gulrak/chiplet
+[octopus]: https://github.com/Timendus/chipcode/tree/main/octopus
+[octo]: https://github.com/JohnEarnest/Octo
+[xo-chip]: http://johnearnest.github.io/Octo/docs/XO-ChipSpecification.html
+[octo-ide]: http://johnearnest.github.io/Octo/
+
+**TL;DR**: A terminal-inspired text rendering library in [Octo][octo]
+for [XO-CHIP][xo-chip].
+
+It supports notions of foreground and background.
+
+License TBD, but there's [an interactive demo on itch.io][itch]. This
+project was initially written as an [Octojam 10][octojam10] entry.
 
 
-There's [an interactive demo on itch.io](https://pushfoo.itch.io/termlib-demo).
-The project was initially written as an [Octojam 10](https://itch.io/jam/octojam-10)
-entry.
+## Quickstart
 
+1. Save [template.8o](template.8o) or copy it into the online [Octo IDE][octo-ide]
+2. Find the `Start` and `End` of user code markers in it matching the code below
+3. Replace the code inside them to match the following:
+   ```
+   #######  Start of User code  #######
 
-It supports notions of foreground and background. This code produces
-the output below it:
+   : main
+       hires
+       loop
+           clear 
+           show-msg 0 0 message_string
+           v0 := key  # Wait for user input before looping
+       again
+   
+   : message_string
+       text "^B3^F2"
+       text "PLANE 3 BG PLANE 2 TXT\n"
+       text "^D"  # Reset the colors
+       text "PLANE 0 BG PLANE 3 TXT\n"
+       text "^B2" # Set BG plane to 3
+       text "PLANE 2 BG PLANE 3 TXT\"
+       text "\0" # \0 ends the message.
+   
+   #######   End of User Code   ######
+   ```
 
-```
-: message_string
-    text "^B3^F2"
-    text "PLANE 3 BG PLANE 2 TXT\n"
-    text "^D"  # Reset the colors
-    text "PLANE 0 BG PLANE 3 TXT\n"
-    text "^B2" # Set BG plane to 3
-    text "PLANE 2 BG PLANE 3 TXT\"
-    text "\0" # \0 ends the message.
+When you compile & run, you should see something like the following:
 
-:main
-    show-msg 0 0 message-string
-
-    v0 := key # wait for input before the rest of the program
-```
 ![example output](docs/example_text.png)
 
-Colors depend on your current XO-CHIP color palette.
-
+The exact colors depend on your current XO-CHIP color palette.
 
 ## Table of contents
 

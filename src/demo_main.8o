@@ -1,6 +1,6 @@
-:include "render_core.8o"
+:include "render_core.8o"  # Remove this line if using the template
 
-####### User code #######
+#######  Start of User code  #######
 : main
 
 	hires
@@ -16,8 +16,6 @@
 		msg-screen msg_all
 	again
 
-######## Message data ########
-
 : msg_title
 		text "\n\n"
 		text "^F3^B0 TERMLIB DEMO\n"
@@ -31,4 +29,6 @@
 		text "^F0^B2 8^F1^B2 9^F2^B210^F3^B211\n"
 		text "^F0^B312^F1^B313^F2^B314^F3^B315^D\0"
 
-:include "render_impl.8o"
+#######   End of User Code   ######
+
+:include "render_impl.8o"  # Remove this line if using the template

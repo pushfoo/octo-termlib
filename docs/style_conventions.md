@@ -1,5 +1,9 @@
 # Project Conventions
 
+**This document goes into depth about technical details. If you just
+want to render text, see the quickstart instructions at the top of
+[README.md](../README.md)**
+
 [pyglet]: https://github.com/pyglet/pyglet
 [chiplet]: https://github.com/gulrak/chiplet
 
@@ -25,7 +29,9 @@ that may change.
 
 ## Includes & Overrides
 
-This project uses [chiplet][chiplet] for builds. Much like C/C++, it uses
+
+
+Much like C/C++, it uses
 defines to prevent repeating includes and definitions. These constants use
 `TERMLIB_` as a prefix:
 
