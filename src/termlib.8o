@@ -209,7 +209,7 @@
 
 }
 
-	: _render-visible-glyph
+	: render-visible-glyph
 
     #: Render current_byte_value to the screen using the glyph table
 		#:
@@ -360,7 +360,7 @@
 
 				jump0 _byte_action_table
 				: _byte_action_table
-					:call _render-visible-glyph   jump _byte_action_table_after
+					:call render-visible-glyph   jump _byte_action_table_after
 					:call _handle-control         jump _byte_action_table_after
 					:call _handle-newline       # jump _byte_action_table_after # Last jump redundant
 				: _byte_action_table_after
