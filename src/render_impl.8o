@@ -1,11 +1,11 @@
 # Render functions used by _show-msg-render
-:if KEEP_META_COMMENTS
 #
-# Define the CUSTOM_ variables above each function if you want to
-# implement your own version.
-:end
+# Define the TERMLIB_ constant above each function before importing
+# this file if you want to implement your own version.
 
-:unless CUSTOM_HANDLE_CONTROL
+:unless TERMLIB_HANDLE_CONTROL
+:const TERMLIB_HANDLE_CONTROL 1
+
 : handle-control
 
     #: Handle the next byte as a control escape.
@@ -43,9 +43,11 @@
 
     : _handle-control-end
 return
-:end
 
-:unless CUSTOM_HANDLE_NEWLINE
+:end
+:unless TERMLIB_HANDLE_NEWLINE
+:const TERMLIB_HANDLE_NEWLINE 1 # Mark this function as implemented
+
 : handle-newline
 
     #: Move to the next line down.
@@ -59,9 +61,11 @@ return
     draw_y += GLYPH_STEP_Y_PX
     draw_x := msg_start_x
 return
-:end
 
-:unless CUSTOM_HANDLE_RENDER_VISIBLE_GLYPH
+:end
+:unless TERMLIB_RENDER_VISIBLE_GLYPH
+:const TERMLIB_RENDER_VISIBLE_GLYPH 1 # Mark this function as implemented
+
 : render-visible-glyph
 
     #: Render current_byte_value to the screen using the glyph table
@@ -127,6 +131,6 @@ return
     : _render-visible-glyph-end
     draw_x += GLYPH_STEP_X_PX
 return
-:end
 
+:end
 :include "default_font_data.8o"
