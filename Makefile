@@ -11,7 +11,7 @@ build-dir:
 clean :
 	@rm -rf build
 
-demo-src :build-dir
+demo-src : clean build-dir
 	@mkdir -p "build/demo"
 	$(OCTO_PRE) --no-line-info -o build/demo/termlib_demo.8o -P src/demo_main.8o
 
