@@ -1,8 +1,7 @@
 # Project Conventions
 
-**This document goes into depth about technical details. If you just
-want to render text, see the quickstart instructions at the top of
-[README.md](../README.md)**
+**This is a WIP technical details page. For quickstart
+instructions, see the top of [README.md](../README.md)**
 
 [pyglet]: https://github.com/pyglet/pyglet
 [chiplet]: https://github.com/gulrak/chiplet
@@ -12,7 +11,6 @@ want to render text, see the quickstart instructions at the top of
 * Markdown
 * Styles I saw in other Octo projects, such as the [chiplet][chiplet]
   preprocessor.
-
 * [pyglet][pyglet]'s doc style, a variant of Google's Python docstring style.
 
 There's no rendering of the doc data to HTML or Markdown *yet*, but
@@ -29,11 +27,9 @@ that may change.
 
 ## Includes & Overrides
 
-
-
-Much like C/C++, it uses
-defines to prevent repeating includes and definitions. These constants use
-`TERMLIB_` as a prefix:
+Much like C/C++, this project uses defines to prevent repeating
+includes and definitions. These constants use `TERMLIB_` as a
+prefix:
 
 | Type         | Example                 | Corresponding guard constant      |
 |--------------|-------------------------|-----------------------------------|
@@ -41,8 +37,8 @@ defines to prevent repeating includes and definitions. These constants use
 | Function     | `: handle-newline`      | `:const TERMLIB_HANDLE_NEWLINE 1` |
 | Macro        | `:macro use-color {...` | `:const TERMLIB_USE_COLOR 1`      |
 
-You can override certain functions by defining the following before importing
-the file which would otherwise define it:
+You can override certain functions by defining the following
+before importing the file which would otherwise define it:
 
 1. A replacement function or macro with the same behavior
 2. The corresponding constant, which prevents it from being
@@ -53,8 +49,11 @@ the file which would otherwise define it:
 **TL;DR**:
 
 1. Major functions persist state to memory between calls
-2. "returns" is interpreted as any register which holds a 
-   useful value at the end of a function call.
+2. "returns" means a register which holds a new
+    useful value at the end of a function call.
+3. "Updates" means the value has the same general kind of
+   meaning as before, but the value has been updated to
+   reflect current state
 
 | Register range(s)  | Purpose(s)                    | Comments                                      |
 |--------------------|-------------------------------|-----------------------------------------------|
@@ -91,7 +90,7 @@ are not intended t be called directly by user code.
 
 ### Data types
 
-There's no IDE support (yet?), but I'm using the following so
+There's no IDE support (yet?), but I'm using the following
 notation so far:
 
 | type name       | meaning                    |

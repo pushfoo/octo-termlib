@@ -47,7 +47,7 @@ project was initially written as an [Octojam 10][octojam10] entry.
 
 When you compile & run, you should see something like the following:
 
-![example output](docs/example_text.png)
+![example output](docs/images/example_text.png)
 
 The exact colors depend on your current XO-CHIP color palette.
 
@@ -119,7 +119,7 @@ library, drawing the formatted text on it consists of the following:
     ```
 
 The result:
-![The title screen of the demo on itch.io](docs/title_screen.png)
+![The title screen of the demo on itch.io](docs/images/title_screen.png)
 
 Every `^` starts an escape sequence which changes the drawing planes
 instead of rendering as text. Some set non-default colors, while others
@@ -138,7 +138,7 @@ using the following syntax:
 ```
 
 The result:
-![The result of the combo screen text](docs/combo_screen.png)
+![The result of the combo screen text](docs/images/combo_screen.png)
 
 ## Is it fast?
 
