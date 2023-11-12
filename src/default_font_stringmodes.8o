@@ -5,20 +5,20 @@
 
 # Macro used as `text "stringvalue"` will generate ascii bytes.
 :stringmode text "\0\n !\"'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^m" {
-	:byte { CHAR }
+  :byte { CHAR }
 }
-	# :stringmode text "^" { :byte CHAR_ESCAPE }
+  # :stringmode text "^" { :byte CHAR_ESCAPE }
 
 :stringmode text-offset "'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^" {
-	#( ( MAINBLOCK_START <= CHAR ) and ( CHAR <= MAINBLOCK_END ) ) *
-	:pointer { ( GLYPH_DATA_LENGTH_BYTES * 3 )
-						 + ( ( 3 + CHAR - MAINBLOCK_START ) *  GLYPH_DATA_LENGTH_BYTES ) }
-	# :byte { ( mainblock-position >> 8 ) & 0xFF ) }
-	# :byte {   mainblock-position        & 0xFF ) }
+  #( ( MAINBLOCK_START <= CHAR ) and ( CHAR <= MAINBLOCK_END ) ) *
+  :pointer { ( GLYPH_DATA_LENGTH_BYTES * 3 )
+             + ( ( 3 + CHAR - MAINBLOCK_START ) *  GLYPH_DATA_LENGTH_BYTES ) }
+  # :byte { ( mainblock-position >> 8 ) & 0xFF ) }
+  # :byte {   mainblock-position        & 0xFF ) }
 }
 # \0 !\"',./
 :stringmode text-offset " !\"" {
-	:pointer { ( ( CHAR - CHAR_SPACE ) * GLYPH_DATA_LENGTH_BYTES  ) }
+  :pointer { ( ( CHAR - CHAR_SPACE ) * GLYPH_DATA_LENGTH_BYTES  ) }
 }
 # :stringmode text-offset "^"    { :pointer long font_data_control }
 

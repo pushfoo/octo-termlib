@@ -12,12 +12,12 @@
     #:
     #: Assumes non-printable / control byte in current_byte_value
     #: Args:
-    #:	 current_byte_value  : vN
-    #:		 a current byte which is assumed to be CHAR_ESCAPE
-    #:	 current_byte_index  : vN
-    #:		 the current index in bytes into the string
+    #:   current_byte_value  : vN
+    #:     a current byte which is assumed to be CHAR_ESCAPE
+    #:   current_byte_index  : vN
+    #:     the current index in bytes into the string
     #: Updates:
-    #: 	fg_color, bg_color, current_byte_value, current_char_index
+    #:  fg_color, bg_color, current_byte_value, current_char_index
     #: Clobbers:
     #:  vF
     #: Returns: void
@@ -53,7 +53,7 @@ return
     #: Move to the next line down.
     #:
     #: Updates:
-    #: 	draw_x, draw_y
+    #:  draw_x, draw_y
     #: Clobbers:
     #:  vF
     #: Returns: void
@@ -71,18 +71,18 @@ return
     #: Render current_byte_value to the screen using the glyph table
     #:
     #: Args:
-    #: 	 draw_x : vN
-    #:		  The screen x position to draw to in pixels
-    #:	 draw_y : vN
-    #: 			The screen y position to draw to in pixels
+    #:   draw_x : vN
+    #:      The screen x position to draw to in pixels
+    #:   draw_y : vN
+    #:      The screen y position to draw to in pixels
     #:   current_byte_value : vN
     #:      A value which is in font_offsets and font_data.
     #:   bg_color: vN
-    #:			Which planes to draw the background on, if any.
-    #:	 fg_color: vN
-    #:		  Which planes to draw the foreground on, if any.
+    #:      Which planes to draw the background on, if any.
+    #:   fg_color: vN
+    #:      Which planes to draw the foreground on, if any.
     #: Clobbers:
-    #:	 i, v0 - v3, vF
+    #:   i, v0 - v3, vF
     #: Updates:
     #:   draw_x
 

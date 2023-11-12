@@ -42,11 +42,11 @@
 # Current character & text mode
 :alias current_byte_index     vB
 
-	#: The current offset into the message.
+  #: The current offset into the message.
 
 :alias current_byte_value     vC
 
-	#: The read value of the current byte.
+  #: The read value of the current byte.
 
 :monitor current_byte_index "%i (decimal)"
 :monitor current_byte_value "%c (ascii)"
@@ -56,67 +56,67 @@
 # Todo: consider storing the decoded values in memory...
 # useful if want to do layout.
 
-	# Universal control characters
-	:const CHAR_NULL          0x00  #: End of message
+  # Universal control characters
+  :const CHAR_NULL          0x00  #: End of message
 
-	# "Block" boundaries for text to allow sparse text rendering
-	:const CHAR_SPACE         0x20  #: Boundary: start of early block
-	:const CHAR_SINGLEQUOTE   0x27  #: Boundary: end of early block
-	:const CHAR_A             0x41  #: Boundary: start of letters
-	:const CHAR_Z             0x5A  #: Boundary: end of letters
+  # "Block" boundaries for text to allow sparse text rendering
+  :const CHAR_SPACE         0x20  #: Boundary: start of early block
+  :const CHAR_SINGLEQUOTE   0x27  #: Boundary: end of early block
+  :const CHAR_A             0x41  #: Boundary: start of letters
+  :const CHAR_Z             0x5A  #: Boundary: end of letters
 
- 	#: ### Formatting control characters
+  #: ### Formatting control characters
 
-	:const CHAR_ESCAPE        0x5E  #: The start of an escape sequence.
+  :const CHAR_ESCAPE        0x5E  #: The start of an escape sequence.
 
-	#: `^` in text is treated as an escape sequence opener.
-	#:
-	#: The following Control codes are supported:
+  #: `^` in text is treated as an escape sequence opener.
+  #:
+  #: The following Control codes are supported:
 
-	:const CHAR_NEWLINE       0x0A  #: '\n' in text, goes back to the
-	:const CHAR_B             0x42  #: Background control code
-	:const CHAR_F             0x46  #: Foreground control code
-	:const CHAR_D             0x44  #: "Restore defaults"
+  :const CHAR_NEWLINE       0x0A  #: '\n' in text, goes back to the
+  :const CHAR_B             0x42  #: Background control code
+  :const CHAR_F             0x46  #: Foreground control code
+  :const CHAR_D             0x44  #: "Restore defaults"
 
-	:macro _base10 NAME { :calc NAME { CALLS + 0x30 } }
+  :macro _base10 NAME { :calc NAME { CALLS + 0x30 } }
 
-		_base10 CHAR_0
-		_base10 CHAR_1
-		_base10 CHAR_2
-		_base10 CHAR_3
-		_base10 CHAR_4
-		_base10 CHAR_5
-		_base10 CHAR_6
-		_base10 CHAR_7
-		_base10 CHAR_8
-		_base10 CHAR_9
+    _base10 CHAR_0
+    _base10 CHAR_1
+    _base10 CHAR_2
+    _base10 CHAR_3
+    _base10 CHAR_4
+    _base10 CHAR_5
+    _base10 CHAR_6
+    _base10 CHAR_7
+    _base10 CHAR_8
+    _base10 CHAR_9
 
-	:const STYLE_PLANE_0    CHAR_0
-	:const STYLE_PLANE_1    CHAR_1
-	:const STYLE_PLANE_2    CHAR_2
-	:const STYLE_PLANE_3    CHAR_3
+  :const STYLE_PLANE_0    CHAR_0
+  :const STYLE_PLANE_1    CHAR_1
+  :const STYLE_PLANE_2    CHAR_2
+  :const STYLE_PLANE_3    CHAR_3
 
-	# Character constants (check with `& 0x80`; 0b10000000 works too)
-	:const END_OF_STRING CHAR_NULL
+  # Character constants (check with `& 0x80`; 0b10000000 works too)
+  :const END_OF_STRING CHAR_NULL
 
-	# A coherent-ish block of chars values, '0' <= char <= 'Z'
-	:const MAINBLOCK_START  CHAR_SINGLEQUOTE
-	:const MAINBLOCK_END    CHAR_Z
-	:calc  MAINBLOCK_SPAN   { MAINBLOCK_END - MAINBLOCK_START }
+  # A coherent-ish block of chars values, '0' <= char <= 'Z'
+  :const MAINBLOCK_START  CHAR_SINGLEQUOTE
+  :const MAINBLOCK_END    CHAR_Z
+  :calc  MAINBLOCK_SPAN   { MAINBLOCK_END - MAINBLOCK_START }
 
 
 : current_msg_state
 
-	#: A struct for persisting the current message state.
+  #: A struct for persisting the current message state.
 
-	: _current_msg_position
-		0x00 # Msg start x
-		0x00 # Msg start Y
+  : _current_msg_position
+    0x00 # Msg start x
+    0x00 # Msg start Y
 
-		0x00 # current_byte_index
-		0x00 # current_byte_value
+    0x00 # current_byte_index
+    0x00 # current_byte_value
 
-	: _current_msg_position_end
+  : _current_msg_position_end
 
 
 # This has to be a label since we need to use a real
@@ -124,137 +124,137 @@
 
 : restore-current-msg
 
-	#: Restore the current message pointer to i.
+  #: Restore the current message pointer to i.
 
-	0xF0 0x00
-	: _current_msg_addr
-	  0x00 0x00
+  0xF0 0x00
+  : _current_msg_addr
+    0x00 0x00
 
- 	return
+  return
 
 
 :macro set-current-msg LABEL {
 
-	#: Set the current message to begin showing in a resumable way.
-	#:
-	#: Args:
-	#:	 LABEL   : label
-	#:  	 Which null-terminated message to set as active.
-	#:
-	#: Clobbers:
-	#:		v0 - v1
-	#:
-	#:	Returns : void
+  #: Set the current message to begin showing in a resumable way.
+  #:
+  #: Args:
+  #:   LABEL   : label
+  #:     Which null-terminated message to set as active.
+  #:
+  #: Clobbers:
+  #:    v0 - v1
+  #:
+  #:  Returns : void
 
-		:unpack long LABEL     # Store LABEL into v0, vN; long allows reading higher mem
-		i := long _current_msg_addr
-		save v0 - v1  # Uses rStart - rEnd form to avoid advancing
+    :unpack long LABEL     # Store LABEL into v0, vN; long allows reading higher mem
+    i := long _current_msg_addr
+    save v0 - v1  # Uses rStart - rEnd form to avoid advancing
 }
 
 :macro peek-next-msg-byte vN {
 
-	#: Load the byte at current_byte_index in the current message to vN
-	#:
-	#: Args:
-	#: 	vN : vN
-	#:		A register containing an offset into the message.
-	#: Clobbers:
-	#: 	i
-	#: Returns: u8
-	#: 	The value of the byte at offset vN from msg start.
+  #: Load the byte at current_byte_index in the current message to vN
+  #:
+  #: Args:
+  #:  vN : vN
+  #:    A register containing an offset into the message.
+  #: Clobbers:
+  #:  i
+  #: Returns: u8
+  #:  The value of the byte at offset vN from msg start.
 
-	:call restore-current-msg
-	i += current_byte_index
-	load vN - vN
+  :call restore-current-msg
+  i += current_byte_index
+  load vN - vN
 }
 
 :macro read-msg-byte             vN { current_byte_index += 1  peek-next-msg-byte vN     }
 
-	#: Read the next byte of the message, advancing the current byte index.
-	#: Args:
-	#:   vN : vN
-	#:		 Where to read the current byte to.
-	#: Updates:
-	#:		 current_byte_index, i
-	#: Returns:
-	#:	  vN
+  #: Read the next byte of the message, advancing the current byte index.
+  #: Args:
+  #:   vN : vN
+  #:     Where to read the current byte to.
+  #: Updates:
+  #:     current_byte_index, i
+  #: Returns:
+  #:    vN
 
 :macro read-next-byte-as-color   vN { read-msg-byte vN  vN -= CHAR_0 }
 
-	#: Read the next byte of the message as a color, advancing the current byte index.
-	#: Args:
-	#:   vN : vN
-	#:		 Where to read the color to.
-	#: Updates:
-	#:		 current_byte_index
-	#: Clobbers:
-	#:  i
-	#: Returns:
-	#:	  vN
+  #: Read the next byte of the message as a color, advancing the current byte index.
+  #: Args:
+  #:   vN : vN
+  #:     Where to read the color to.
+  #: Updates:
+  #:     current_byte_index
+  #: Clobbers:
+  #:  i
+  #: Returns:
+  #:    vN
 
 :macro show-msg START_X START_Y MSG_LABEL {
 
-	#: Set the draw cursor to the given X, Y and render a null-terminated message.
-	#:
-	#: Args:
-	#: 	START_X  :
-	#:			A X position to move the cursor to.
-	#: 	START_Y :
-	#:			A Y position to move the cursor to.
-	#: 	MSG_LABEL :
-	#:			A label-like token which points to a null-terminated message.
-	#:
-	#: Clobbers:
-	#: 	i, v0 - v3, vF
+  #: Set the draw cursor to the given X, Y and render a null-terminated message.
+  #:
+  #: Args:
+  #:  START_X  :
+  #:      A X position to move the cursor to.
+  #:  START_Y :
+  #:      A Y position to move the cursor to.
+  #:  MSG_LABEL :
+  #:      A label-like token which points to a null-terminated message.
+  #:
+  #: Clobbers:
+  #:  i, v0 - v3, vF
 
-	msg_start_x  := START_X   msg_start_y := START_Y
-	set-current-msg MSG_LABEL
-	:call           _show-msg-render
+  msg_start_x  := START_X   msg_start_y := START_Y
+  set-current-msg MSG_LABEL
+  :call           _show-msg-render
 
 }
 
-	: _show-msg-render
+  : _show-msg-render
 
-			#: Render an entire null-terminated message.
-			#:
-			#: Args:
-			#: 	msg_start_x : vN
-			#: 		X position where messages should be shown on the screen
-			#:  msg_start_y : vN
-			#: 		Y position where message should be shown on the screen.
-			#: Clobbers:
-			#: 		v0, current_byte_value, current_byte_index, vF
-			#: Updates:
-			#: 		draw_x, draw_y
+      #: Render an entire null-terminated message.
+      #:
+      #: Args:
+      #:  msg_start_x : vN
+      #:    X position where messages should be shown on the screen
+      #:  msg_start_y : vN
+      #:    Y position where message should be shown on the screen.
+      #: Clobbers:
+      #:    v0, current_byte_value, current_byte_index, vF
+      #: Updates:
+      #:    draw_x, draw_y
 
-			# :breakpoint render
+      # :breakpoint render
 
-			current_byte_index := 0
-			set-draw-coords-to msg_start_x msg_start_y
+      current_byte_index := 0
+      set-draw-coords-to msg_start_x msg_start_y
 
-			loop
+      loop
 
-				peek-next-msg-byte current_byte_value
-				# Exit on end of message, no exceptions
-				while current_byte_value != END_OF_STRING
+        peek-next-msg-byte current_byte_value
+        # Exit on end of message, no exceptions
+        while current_byte_value != END_OF_STRING
 
-				# :breakpoint decide
-				v0 := 0
-				if current_byte_value == CHAR_ESCAPE  then v0 := 4 # instructions 2 long
-				if current_byte_value == CHAR_NEWLINE then v0 := 8 #
+        # :breakpoint decide
+        v0 := 0
+        if current_byte_value == CHAR_ESCAPE  then v0 := 4 # instructions 2 long
+        if current_byte_value == CHAR_NEWLINE then v0 := 8 #
 
-				jump0 _byte_action_table
-				: _byte_action_table
-					:call render-visible-glyph   jump _byte_action_table_after
-					:call handle-control         jump _byte_action_table_after
-					:call handle-newline       # jump _byte_action_table_after # Last jump redundant
-				: _byte_action_table_after
+        jump0 _byte_action_table
+        : _byte_action_table
+          :call render-visible-glyph   jump _byte_action_table_after
+          :call handle-control         jump _byte_action_table_after
+          :call handle-newline       # jump _byte_action_table_after # Last jump redundant
+        : _byte_action_table_after
 
-				: _byte_loop_end
-				current_byte_index += 1
-			again
+        : _byte_loop_end
+        current_byte_index += 1
+      again
 
-	: _show-msg-render-end
-	return
+  : _show-msg-render-end
+  return
 
 :include "default_font_stringmodes.8o"
