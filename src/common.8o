@@ -16,10 +16,6 @@
 :const ADD_OP_OVERFLOW     1  # vF's value when addition overflows
 :const MINUS_ONE        0xFF  # -1 as the 8-bit two's complement
 
-:macro vN--               vN { vN += MINUS_ONE }
-
-
-#TODO: see if i can make a comment macro that throws away the string value?
 
 :macro add_u16_u8   x_hi_u16 x_lo_u16   y_lo_u8             {
 
@@ -84,6 +80,7 @@
   v0 += hi_u16
 
 }
+
 
 # Time and feedback controls
 :macro start_buzzer_though vN amount { vN := amount buzzer := vN }
