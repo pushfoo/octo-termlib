@@ -52,14 +52,34 @@ When you compile & run, you should see something like the following:
 The exact colors depend on your current XO-CHIP color palette.
 
 ## Table of contents
+1.  [How big is it?](#how-big-is-it)
+2.  [Why build this?](#why-build-this)
+3.  [How does it work?](#how-does-it-work)
+4.  [Is it fast?](#is-it-fast)
+5.  [Syntax Details](#syntax-details)
+6.  [Design goals](#design-goals)
+7.  [Current limitations](#current-limitations)
+8.  [Inspiration](#inspiration)
 
-1.  [Why build this?](#why-build-this)
-2.  [How does it work?](#how-does-it-work)
-3.  [Is it fast?](#is-it-fast)
-4.  [Syntax Details](#syntax-details)
-5.  [Design goals](#design-goals)
-6.  [Current limitations](#current-limitations)
-7.  [Inspiration](#inspiration)
+
+## How big is it?
+
+**TL;DR** It depends on which parts you use.
+
+The demo built with `make demo-rom` takes up 1408 bytes.
+Most of that is the default character set found in: 
+
+1. [src/default_font_data.8o](src/default_font_data.8o)
+2. [src/default_font_stringmodes.8o](src/default_font_data.8o)
+
+You can override this data before importing [src/render_core.8o](src/render_core.8o)
+as described in [docs/style_conventions.8o](docs/style_conventions.md#includes--overrides).
+
+If you define a character set with different contents or structure,
+you may also have override the following:
+
+1. `show-msg` before importing `render_core.8o`
+2. Any character handlers you use from `render_impl.8o` before importing it
 
 ## Why build this?
 

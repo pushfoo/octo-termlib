@@ -192,6 +192,10 @@
   #: Returns:
   #:    vN
 
+
+:unless TERMLIB_SHOW_MSG
+:const  TERMLIB_SHOW_MSG 1 # Mark this function as implemented
+
 :macro show-msg START_X START_Y MSG_LABEL {
 
   #: Set the draw cursor to the given X, Y and render a null-terminated message.
@@ -256,5 +260,6 @@
 
   : _show-msg-render-end
   return
+:end
 
 :include "default_font_stringmodes.8o"
