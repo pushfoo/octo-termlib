@@ -20,8 +20,8 @@ project was initially written as an [Octojam 10][octojam10] entry.
 ## Quickstart
 
 1. Save [template.8o](template.8o) or copy it into the online [Octo IDE][octo-ide]
-2. Find the `Start` and `End` of user code markers in it matching the code below
-3. Replace the code inside them to match the following:
+2. Find the `Start of User code` heading
+3. Replace the code between it and the `End of User Code` heading to match the following:
    ```
    #######  Start of User code  #######
 
