@@ -124,7 +124,7 @@ library, drawing the formatted text on it consists of the following:
     : msg_title
 
        text "\n\n"
-       text "^F3^B0 COLOR LIB DEMO \n"
+       text "^F3^B0 TERM LIB DEMO \n"
        text "     ^F3^B2 PRESS ANY KEY ^D\n"
        text "       ^F1^B3 ALL TEXT DYNAMIC!\0"
     ```
